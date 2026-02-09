@@ -6,6 +6,7 @@ import Home from './pages/Home';
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
 import StudentDashboard from './pages/student/StudentDashboard';
+import JobList from './pages/student/JobList';
 import CompanyDashboard from './pages/company/CompanyDashboard';
 import PostJob from './pages/company/PostJob';
 import ManageJobs from './pages/company/ManageJobs';
@@ -31,6 +32,10 @@ function App() {
             <Route 
               path="/student/dashboard" 
               element={<ProtectedRoute element={<StudentDashboard />} requiredRole="student" />} 
+            />
+            <Route
+              path="/jobs"
+              element={<ProtectedRoute element={<JobList />} requiredRole="student" />}
             />
             
             {/* Company Routes */}

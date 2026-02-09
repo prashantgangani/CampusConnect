@@ -1,9 +1,24 @@
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import jobService from '../../services/jobService';
 import './Dashboard.css';
 
 const CompanyDashboard = () => {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const [activeCount, setActiveCount] = useState(0);
+
+  useEffect(() => {
+    const loadCount = async () => {
+      try {
+        const data = await jobService.getAllJobs();
+        setActiveCount((data.jobs || []).length);
+      } catch  {
+        // ignore count error, leave default
+      }
+    };
+    loadCount();
+  }, []);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -42,7 +57,7 @@ const CompanyDashboard = () => {
       <div className="dashboard-content">
         <div className="stats-grid">
           <div className="stat-box">
-            <h3>0</h3>
+            <h3>{activeCount}</h3>
             <p>Active Jobs</p>
           </div>
           <div className="stat-box">

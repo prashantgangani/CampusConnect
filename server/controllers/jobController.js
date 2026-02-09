@@ -41,9 +41,10 @@ export const createJob = async (req, res) => {
 // Get all jobs (for students and mentors - only approved jobs)
 export const getAllJobs = async (req, res) => {
   try {
-    const jobs = await Job.find({ 
-      approvalStatus: 'approved',
-      status: 'active' 
+    // Return all jobs that are currently active, regardless of placement approval.
+    // Companies' posted jobs will be visible immediately as 'active'.
+    const jobs = await Job.find({
+      status: 'active'
     })
       .populate('company', 'name email')
       .sort({ createdAt: -1 });
