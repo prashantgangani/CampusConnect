@@ -90,26 +90,58 @@ const Register = () => {
       const response = await registerUser(registrationData);
       console.log('Registration response:', response);
       
-      // Show success message
-      setMessage({ text: response.message || 'Registration successful! Redirecting to login...', type: 'success' });
-      
-      // Clear form
-      setFormData({
-        name: '',
-        email: '',
-        password: '',
-        confirmPassword: '',
-        role: ''
-      });
+      // Auto-login: Save token and user data
+      if (response.token && response.user) {
+        localStorage.setItem('token', response.token);
+        localStorage.setItem('user', JSON.stringify(response.user));
+        
+        // Show success message
+        setMessage({ 
+          text: 'Registration successful! Redirecting to dashboard...', 
+          type: 'success' 
+        });
+        
+        // Clear form
+        setFormData({
+          name: '',
+          email: '',
+          password: '',
+          confirmPassword: '',
+          role: ''
+        });
 
-      // Redirect to login page
-      setTimeout(() => {
-        navigate('/login');
-      }, 1000);
+        // Redirect to appropriate dashboard based on role
+        setTimeout(() => {
+          const dashboardPath = `/${response.user.role}/dashboard`;
+          console.log('Navigating to:', dashboardPath);
+          navigate(dashboardPath, { replace: true });
+        }, 1000);
+      } else {
+        // Fallback: If no token (shouldn't happen), redirect to login
+        setMessage({ 
+          text: 'Registration successful! Please login to continue.', 
+          type: 'success' 
+        });
+        setTimeout(() => {
+          navigate('/login');
+        }, 1500);
+      }
     } catch (error) {
       console.error('Registration error:', error);
-      const errorMessage = error.message || error.error || 'Registration failed. Please try again.';
+      
+      // More detailed error handling
+      let errorMessage = 'Registration failed. Please try again.';
+      
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      } else if (error.error) {
+        errorMessage = error.error;
+      }
+      
       setMessage({ text: errorMessage, type: 'error' });
+    } finally {
       setLoading(false);
     }
   };
@@ -187,42 +219,35 @@ const Register = () => {
           {/* Full Name */}
           <div className="form-group">
             <label htmlFor="name">Full Name</label>
-            <div className="input-wrapper">
-              <span className="input-icon">👤</span>
-              <input
-                type="text"
-                id="name"
-                name="name"
-                value={formData.name}
-                onChange={handleChange}
-                placeholder="John Doe"
-                required
-              />
-            </div>
+            <input
+              type="text"
+              id="name"
+              name="name"
+              value={formData.name}
+              onChange={handleChange}
+              placeholder="John Doe"
+              required
+            />
           </div>
 
           {/* Email */}
           <div className="form-group">
             <label htmlFor="email">Email address</label>
-            <div className="input-wrapper">
-              <span className="input-icon">✉️</span>
-              <input
-                type="email"
-                id="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                placeholder="you@college.edu"
+            <input
+              type="email"
+              id="email"
+              name="email"
+              value={formData.email}
+              onChange={handleChange}
+              placeholder="you@college.edu"
                 required
-              />
-            </div>
+            />
           </div>
 
           {/* Password */}
           <div className="form-group">
             <label htmlFor="password">Password</label>
             <div className="input-wrapper">
-              <span className="input-icon">🔒</span>
               <input
                 type={showPassword ? 'text' : 'password'}
                 id="password"
@@ -247,7 +272,6 @@ const Register = () => {
           <div className="form-group">
             <label htmlFor="confirmPassword">Confirm Password</label>
             <div className="input-wrapper">
-              <span className="input-icon">🔒</span>
               <input
                 type={showPassword ? 'text' : 'password'}
                 id="confirmPassword"

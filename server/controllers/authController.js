@@ -35,10 +35,21 @@ const registerUser = async (req, res) => {
 
     await user.save();
 
+    // Generate JWT token for auto-login after registration
+    const token = jwt.sign(
+      { 
+        id: user._id, 
+        role: user.role 
+      },
+      jwtConfig.secret,
+      { expiresIn: jwtConfig.expiresIn }
+    );
+
     res.status(201).json({
       success: true,
       message: 'User registered successfully',
-      data: {
+      token,
+      user: {
         id: user._id,
         name: user.name,
         email: user.email,
