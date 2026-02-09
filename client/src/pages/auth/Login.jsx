@@ -1,8 +1,10 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { loginUser } from '../../services/authService';
 import './Login.css';
 
 const Login = () => {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     email: '',
     password: ''
@@ -25,20 +27,33 @@ const Login = () => {
 
     try {
       const response = await loginUser(formData);
+      console.log('Login response:', response);
+      console.log('User data:', response.user);
       
-      // Save token in localStorage
-      localStorage.setItem('token', response.token);
+      // The authService already saves token and user to localStorage
+      // But let's ensure they're there
+      if (!localStorage.getItem('token')) {
+        localStorage.setItem('token', response.token);
+      }
+      if (!localStorage.getItem('user')) {
+        localStorage.setItem('user', JSON.stringify(response.user));
+      }
       
-      // Save user data in localStorage
-      localStorage.setItem('user', JSON.stringify(response.user));
+      const userRole = response.user?.role;
+      if (!userRole) {
+        throw new Error('User role not found in response');
+      }
       
-      setMessage({ text: 'Login successful! Redirecting...', type: 'success' });
+      setMessage({ text: 'Login successful! Redirecting to dashboard...', type: 'success' });
       
-      // Redirect based on role after a short delay
+      // Redirect based on role using React Router
       setTimeout(() => {
-        window.location.href = `/${response.user.role}/dashboard`;
-      }, 1500);
+        const dashboardPath = `/${userRole}/dashboard`;
+        console.log('Navigating to:', dashboardPath);
+        navigate(dashboardPath, { replace: true });
+      }, 500);
     } catch (error) {
+      console.error('Login error:', error);
       setMessage({ text: error.message || 'Login failed. Please try again.', type: 'error' });
       setLoading(false);
     }

@@ -11,6 +11,24 @@ const CompanyDashboard = () => {
     navigate('/login');
   };
 
+  const handlePostJob = () => {
+    navigate('/company/post-job');
+  };
+
+  const handleViewApplicants = () => {
+    // TODO: Navigate to applicants page
+    console.log('View applicants clicked');
+  };
+
+  const handleManageJobs = () => {
+    navigate('/company/manage-jobs');
+  };
+
+  const handleCompanyProfile = () => {
+    // TODO: Navigate to company profile page
+    console.log('Company profile clicked');
+  };
+
   return (
     <div className="dashboard-container">
       <div className="dashboard-header">
@@ -44,10 +62,10 @@ const CompanyDashboard = () => {
         <div className="quick-actions">
           <h2>Quick Actions</h2>
           <div className="action-buttons">
-            <button className="action-btn">Post New Job</button>
-            <button className="action-btn">View Applicants</button>
-            <button className="action-btn">Manage Jobs</button>
-            <button className="action-btn">Company Profile</button>
+            <button className="action-btn" onClick={handlePostJob}>Post New Job</button>
+            <button className="action-btn" onClick={handleViewApplicants}>View Applicants</button>
+            <button className="action-btn" onClick={handleManageJobs}>Manage Jobs</button>
+            <button className="action-btn" onClick={handleCompanyProfile}>Company Profile</button>
           </div>
         </div>
       </div>

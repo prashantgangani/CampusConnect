@@ -1,8 +1,10 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { registerUser } from '../../services/authService';
 import './Register.css';
 
 const Register = () => {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -102,8 +104,8 @@ const Register = () => {
 
       // Redirect to login page
       setTimeout(() => {
-        window.location.href = '/login';
-      }, 2000);
+        navigate('/login');
+      }, 1000);
     } catch (error) {
       console.error('Registration error:', error);
       const errorMessage = error.message || error.error || 'Registration failed. Please try again.';

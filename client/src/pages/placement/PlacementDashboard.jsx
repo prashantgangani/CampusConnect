@@ -11,6 +11,25 @@ const PlacementDashboard = () => {
     navigate('/login');
   };
 
+  const handleVerifyCompanies = () => {
+    navigate('/placement/verify-companies');
+  };
+
+  const handleManageJobs = () => {
+    // TODO: Navigate to manage all jobs page
+    console.log('Manage jobs clicked');
+  };
+
+  const handleViewAnalytics = () => {
+    // TODO: Navigate to analytics page
+    console.log('View analytics clicked');
+  };
+
+  const handleGenerateReports = () => {
+    // TODO: Navigate to reports page
+    console.log('Generate reports clicked');
+  };
+
   return (
     <div className="dashboard-container">
       <div className="dashboard-header">
@@ -44,10 +63,10 @@ const PlacementDashboard = () => {
         <div className="quick-actions">
           <h2>Quick Actions</h2>
           <div className="action-buttons">
-            <button className="action-btn">Verify Companies</button>
-            <button className="action-btn">Manage Jobs</button>
-            <button className="action-btn">View Analytics</button>
-            <button className="action-btn">Generate Reports</button>
+            <button className="action-btn" onClick={handleVerifyCompanies}>Verify Companies</button>
+            <button className="action-btn" onClick={handleManageJobs}>Manage Jobs</button>
+            <button className="action-btn" onClick={handleViewAnalytics}>View Analytics</button>
+            <button className="action-btn" onClick={handleGenerateReports}>Generate Reports</button>
           </div>
         </div>
       </div>
