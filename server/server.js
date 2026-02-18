@@ -8,6 +8,7 @@ import authRoutes from "./routes/authRoutes.js";
 import jobRoutes from "./routes/jobRoutes.js";
 import debugRoutes from "./routes/debugRoutes.js";
 import studentRoutes from "./routes/studentRoutes.js";
+import applicationRoutes from "./routes/applicationRoutes.js";
 
 const app = express();
 
@@ -24,6 +25,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/jobs", jobRoutes);
 app.use("/api/debug", debugRoutes);
 app.use("/api/student", studentRoutes);
+app.use("/api/applications", applicationRoutes);
 
 // test route
 app.get("/api/test", (req, res) => {
