@@ -71,19 +71,27 @@ const Login = () => {
             </span>
           </div>
 
-          <h1 className="panel-title">Welcome Back!</h1>
+          <h1 className="panel-title">Welcome Back</h1>
           <p className="panel-description">
-            Sign in to access your dashboard, track applications, and continue your journey towards a successful career.
+            Sign in to access your dashboard and continue your placement journey.
           </p>
 
-          <div className="stats-row">
-            <div className="stat-box">
-              <h3>50K+</h3>
-              <p>Students Placed</p>
+          <div className="feature-list">
+            <div className="feature-item">
+              <span className="feature-check">✓</span>
+              Single-click applications to multiple companies
             </div>
-            <div className="stat-box">
-              <h3>2.5K+</h3>
-              <p>Companies</p>
+            <div className="feature-item">
+              <span className="feature-check">✓</span>
+              AI-powered job matching based on your skills
+            </div>
+            <div className="feature-item">
+              <span className="feature-check">✓</span>
+              Real-time tracking of all applications
+            </div>
+            <div className="feature-item">
+              <span className="feature-check">✓</span>
+              Automated interview scheduling
             </div>
           </div>
         </div>

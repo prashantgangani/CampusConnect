@@ -10,7 +10,8 @@ const Register = () => {
     email: '',
     password: '',
     confirmPassword: '',
-    role: ''
+    role: '',
+    institution: '' // College name or Company name
   });
 
   const [loading, setLoading] = useState(false);
@@ -107,7 +108,8 @@ const Register = () => {
           email: '',
           password: '',
           confirmPassword: '',
-          role: ''
+          role: '',
+          institution: ''
         });
 
         // Redirect to appropriate dashboard based on role
@@ -243,6 +245,24 @@ const Register = () => {
                 required
             />
           </div>
+
+          {/* Institution / Company Name */}
+          {formData.role && (
+            <div className="form-group">
+              <label htmlFor="institution">
+                {formData.role === 'company' ? '🏢 Company Name' : '🏛️ College / Institution Name'}
+              </label>
+              <input
+                type="text"
+                id="institution"
+                name="institution"
+                value={formData.institution}
+                onChange={handleChange}
+                placeholder={formData.role === 'company' ? 'Enter your company name' : 'Enter your college name'}
+                required
+              />
+            </div>
+          )}
 
           {/* Password */}
           <div className="form-group">

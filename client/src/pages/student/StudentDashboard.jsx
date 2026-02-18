@@ -15,6 +15,10 @@ const StudentDashboard = () => {
     navigate('/jobs');
   };
 
+  const handleUpdateProfile = () => {
+    navigate('/student/profile');
+  };
+
   return (
     <div className="dashboard-container">
       <div className="dashboard-header">
@@ -51,7 +55,7 @@ const StudentDashboard = () => {
             <button className="action-btn" onClick={handleBrowseJobs}>Browse Jobs</button>
             <button className="action-btn">View Applications</button>
             <button className="action-btn">Take Quiz</button>
-            <button className="action-btn">Update Profile</button>
+            <button className="action-btn" onClick={handleUpdateProfile}>Update Profile</button>
           </div>
         </div>
       </div>

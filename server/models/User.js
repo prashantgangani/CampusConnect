@@ -24,6 +24,10 @@ const userSchema = new mongoose.Schema({
     type: String,
     enum: ['student', 'company', 'mentor', 'placement'],
     required: [true, 'Role is required']
+  },
+  institution: {
+    type: String,
+    trim: true
   }
 }, {
   timestamps: true

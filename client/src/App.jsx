@@ -6,6 +6,7 @@ import Home from './pages/Home';
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
 import StudentDashboard from './pages/student/StudentDashboard';
+import StudentProfile from './pages/student/StudentProfile';
 import JobList from './pages/student/JobList';
 import CompanyDashboard from './pages/company/CompanyDashboard';
 import PostJob from './pages/company/PostJob';
@@ -32,6 +33,10 @@ function App() {
             <Route 
               path="/student/dashboard" 
               element={<ProtectedRoute element={<StudentDashboard />} requiredRole="student" />} 
+            />
+            <Route
+              path="/student/profile"
+              element={<ProtectedRoute element={<StudentProfile />} requiredRole="student" />}
             />
             <Route
               path="/jobs"

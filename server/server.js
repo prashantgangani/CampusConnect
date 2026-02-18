@@ -7,12 +7,14 @@ import connectDB from "./config/db.js";
 import authRoutes from "./routes/authRoutes.js";
 import jobRoutes from "./routes/jobRoutes.js";
 import debugRoutes from "./routes/debugRoutes.js";
+import studentRoutes from "./routes/studentRoutes.js";
 
 const app = express();
 
 // middleware
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' })); // Increase limit for file uploads
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // 🔴 THIS LINE IS VERY IMPORTANT
 connectDB();
@@ -21,6 +23,7 @@ connectDB();
 app.use("/api/auth", authRoutes);
 app.use("/api/jobs", jobRoutes);
 app.use("/api/debug", debugRoutes);
+app.use("/api/student", studentRoutes);
 
 // test route
 app.get("/api/test", (req, res) => {
