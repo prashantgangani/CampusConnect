@@ -6,18 +6,40 @@ import './Dashboard.css';
 const CompanyDashboard = () => {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user') || '{}');
-  const [activeCount, setActiveCount] = useState(0);
+  const [stats, setStats] = useState({
+    activeJobs: 0,
+    applicants: 0,
+    interviews: 0,
+    hired: 0
+  });
 
   useEffect(() => {
-    const loadCount = async () => {
+    const loadStats = async () => {
       try {
-        const data = await jobService.getAllJobs();
-        setActiveCount((data.jobs || []).length);
-      } catch  {
-        // ignore count error, leave default
+        const data = await jobService.getCompanyStats();
+        setStats(data.stats || {
+          activeJobs: 0,
+          applicants: 0,
+          interviews: 0,
+          hired: 0
+        });
+      } catch (error) {
+        console.error('Failed to load company stats:', error);
+        try {
+          const jobsData = await jobService.getJobsByCompany();
+          const ownJobs = jobsData.jobs || [];
+          const fallbackActive = ownJobs.filter((job) => !job.status || job.status === 'active').length;
+
+          setStats((prev) => ({
+            ...prev,
+            activeJobs: fallbackActive
+          }));
+        } catch (fallbackError) {
+          console.error('Fallback company jobs fetch failed:', fallbackError);
+        }
       }
     };
-    loadCount();
+    loadStats();
   }, []);
 
   const handleLogout = () => {
@@ -57,19 +79,19 @@ const CompanyDashboard = () => {
       <div className="dashboard-content">
         <div className="stats-grid">
           <div className="stat-box">
-            <h3>{activeCount}</h3>
+            <h3>{stats.activeJobs}</h3>
             <p>Active Jobs</p>
           </div>
           <div className="stat-box">
-            <h3>0</h3>
+            <h3>{stats.applicants}</h3>
             <p>Applicants</p>
           </div>
           <div className="stat-box">
-            <h3>0</h3>
+            <h3>{stats.interviews}</h3>
             <p>Interviews</p>
           </div>
           <div className="stat-box">
-            <h3>0</h3>
+            <h3>{stats.hired}</h3>
             <p>Hired</p>
           </div>
         </div>

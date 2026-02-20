@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import jobService from '../../services/jobService';
+import applicationService from '../../services/applicationService';
 import './Dashboard.css';
 
 const StudentDashboard = () => {
@@ -22,105 +23,127 @@ const StudentDashboard = () => {
   const [profileCompletion, setProfileCompletion] = useState(35);
   const [missingProfileItems, setMissingProfileItems] = useState([]);
   const [studentProfile, setStudentProfile] = useState(null);
+  const [uiMessage, setUiMessage] = useState(null);
+  const [quizModalOpen, setQuizModalOpen] = useState(false);
+  const [quizLoading, setQuizLoading] = useState(false);
+  const [quizSubmitting, setQuizSubmitting] = useState(false);
+  const [quizApplicationId, setQuizApplicationId] = useState(null);
+  const [quizQuestions, setQuizQuestions] = useState([]);
+  const [quizAnswers, setQuizAnswers] = useState({});
+  const [quizCurrentIndex, setQuizCurrentIndex] = useState(0);
+  const [quizResultModal, setQuizResultModal] = useState({
+    open: false,
+    passed: false,
+    percentage: 0,
+    text: '',
+    applicationId: null
+  });
+  const [infoModal, setInfoModal] = useState({
+    open: false,
+    title: '',
+    text: ''
+  });
+
+  const getErrorMessage = (error, fallback) => {
+    if (typeof error === 'string') return error;
+    if (error?.message) return error.message;
+    if (error?.error) return error.error;
+    if (error?.data?.message) return error.data.message;
+    if (error?.data?.error) return error.data.error;
+    return fallback;
+  };
+
+  const fetchDashboardData = async (showLoader = true) => {
+    try {
+      if (showLoader) setLoading(true);
+
+      const profileRes = await fetch('http://localhost:5000/api/student/profile', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      let studentProfileData = null;
+      if (profileRes.ok) {
+        const profileData = await profileRes.json();
+        if (profileData.data) {
+          studentProfileData = profileData.data;
+          setStudentProfile(profileData.data);
+          setProfileCompletion(profileData.data.profileCompletion || 35);
+
+          const missing = [];
+          if (!profileData.data.phone) missing.push('Phone');
+          if (!profileData.data.cgpa) missing.push('CGPA');
+          if (!profileData.data.skills || profileData.data.skills.length === 0) missing.push('Skills');
+          if (!profileData.data.resume) missing.push('Resume');
+          setMissingProfileItems(missing);
+        }
+      }
+
+      const applicationsRes = await fetch('http://localhost:5000/api/applications', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      let applications = [];
+      if (applicationsRes.ok) {
+        const appData = await applicationsRes.json();
+        applications = appData.data || [];
+
+        const processed = applications.map((app) => ({
+          id: app._id,
+          jobId: app.jobId?._id,
+          jobTitle: app.jobId?.title || 'Unknown Job',
+          company: app.jobId?.company?.name || app.jobId?.companyName || 'Company',
+          status: formatApplicationStatus(app.status),
+          statusType: app.status,
+          quizScore: app.quizScore,
+          interviewDate: app.interviewDate,
+          mentorApprovedAt: app.mentorApprovedAt,
+          date: new Date(app.appliedAt).toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric'
+          })
+        }));
+
+        setRecentApplications(processed);
+
+        const totalApps = applications.length;
+        const interviews = applications.filter((a) => a.status === 'interview_scheduled').length;
+        const shortlisted = applications.filter((a) =>
+          ['shortlisted', 'interview_scheduled', 'selected'].includes(a.status)
+        ).length;
+
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        const appsThisWeek = applications.filter((a) => new Date(a.appliedAt) >= sevenDaysAgo).length;
+
+        setStats({
+          applications: totalApps,
+          applicationsThisWeek: appsThisWeek,
+          interviews,
+          shortlisted,
+          profileViews: studentProfileData?.profileViews || 0
+        });
+      }
+
+      const jobsResponse = await jobService.getAllJobs();
+      const jobs = jobsResponse.jobs || [];
+      const appliedJobIds = applications.map((app) => app.jobId?._id).filter(Boolean);
+      const availableJobs = jobs.filter((job) => !appliedJobIds.includes(job._id));
+      setAvailableOpportunities(availableJobs.slice(0, 3));
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+      setUiMessage({
+        type: 'error',
+        text: getErrorMessage(error, 'Unable to load dashboard data right now. Please refresh and try again.')
+      });
+    } finally {
+      if (showLoader) setLoading(false);
+    }
+  };
 
   // Fetch all dashboard data
   useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        setLoading(true);
-
-        // Fetch student profile
-        const profileRes = await fetch('http://localhost:5000/api/student/profile', {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        let studentProfileData = null;
-        if (profileRes.ok) {
-          const profileData = await profileRes.json();
-          if (profileData.data) {
-            studentProfileData = profileData.data;
-            setStudentProfile(profileData.data);
-            setProfileCompletion(profileData.data.profileCompletion || 35);
-            
-            // Calculate missing profile items
-            const missing = [];
-            if (!profileData.data.phone) missing.push('Phone');
-            if (!profileData.data.cgpa) missing.push('CGPA');
-            if (!profileData.data.skills || profileData.data.skills.length === 0) missing.push('Skills');
-            if (!profileData.data.resume) missing.push('Resume');
-            setMissingProfileItems(missing);
-          }
-        }
-
-        // Fetch student applications
-        const applicationsRes = await fetch('http://localhost:5000/api/applications', {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (applicationsRes.ok) {
-          const appData = await applicationsRes.json();
-          const applications = appData.data || [];
-          
-          // Process applications
-          const processed = applications.map(app => ({
-            id: app._id,
-            jobTitle: app.jobId?.title || 'Unknown Job',
-            company: app.jobId?.company?.name || 'Unknown Company',
-            status: formatApplicationStatus(app.status),
-            statusType: app.status,
-            quizScore: app.quizScore,
-            interviewDate: app.interviewDate,
-            mentorApprovedAt: app.mentorApprovedAt,
-            date: new Date(app.appliedAt).toLocaleDateString('en-US', {
-              month: 'short',
-              day: 'numeric'
-            })
-          }));
-          
-          setRecentApplications(processed);
-          
-          // Calculate stats
-          const totalApps = applications.length;
-          const interviews = applications.filter(a => 
-            a.status === 'interview_scheduled'
-          ).length;
-          const shortlisted = applications.filter(a => 
-            ['shortlisted', 'interview_scheduled', 'selected'].includes(a.status)
-          ).length;
-          
-          // Calculate applications from this week (last 7 days)
-          const sevenDaysAgo = new Date();
-          sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-          const appsThisWeek = applications.filter(a => 
-            new Date(a.appliedAt) >= sevenDaysAgo
-          ).length;
-          
-          setStats({
-            applications: totalApps,
-            applicationsThisWeek: appsThisWeek,
-            interviews,
-            shortlisted,
-            profileViews: studentProfileData?.profileViews || 0
-          });
-        }
-
-        // Fetch available jobs
-        const jobsResponse = await jobService.getAllJobs();
-        const jobs = jobsResponse.jobs || [];
-        
-        // Filter out jobs user has already applied to
-        const appliedJobIds = recentApplications.map(app => app.jobId?._id);
-        const availableJobs = jobs.filter(job => !appliedJobIds.includes(job._id));
-        
-        setAvailableOpportunities(availableJobs.slice(0, 3));
-        
-      } catch (error) {
-        console.error('Error fetching dashboard data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     if (token) {
-      fetchDashboardData();
+      fetchDashboardData(true);
     }
   }, [token]);
 
@@ -131,31 +154,179 @@ const StudentDashboard = () => {
   };
 
   const handleUpdateProfile = () => {
-    navigate('/student/profile');
+    navigate('/student/profile?action=edit');
+  };
+
+  const handleQuickUploadResume = () => {
+    navigate('/student/profile?action=upload');
+  };
+
+  const handleQuickAddSkill = () => {
+    navigate('/student/profile?action=skills');
   };
 
   const handleApplyJob = async (jobId) => {
     try {
-      const response = await fetch('http://localhost:5000/api/applications/apply', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({ jobId })
-      });
-
-      if (response.ok) {
-        alert('Application submitted! Please take the quiz.');
-        // Refresh applications
-        window.location.reload();
+      const response = await applicationService.applyForJob(jobId);
+      if (response.success) {
+        setInfoModal({
+          open: true,
+          title: 'Application Submitted',
+          text: 'Application submitted successfully. You can now take the quiz from Recent Applications.'
+        });
+        fetchDashboardData(false);
       } else {
-        alert('Failed to apply for job');
+        setUiMessage({
+          type: 'error',
+          text: response.message || 'Failed to apply for job.'
+        });
       }
     } catch (error) {
       console.error('Error applying:', error);
-      alert('Error applying for job');
+      setUiMessage({
+        type: 'error',
+        text: getErrorMessage(error, 'Unable to apply for this job right now.')
+      });
     }
+  };
+
+  const handleTakeQuiz = async (applicationId) => {
+    try {
+      if (!applicationId) {
+        setUiMessage({
+          type: 'error',
+          text: 'Quiz is not available for this application right now. Please refresh and try again.'
+        });
+        return;
+      }
+
+      setUiMessage(null);
+      setQuizLoading(true);
+      setQuizModalOpen(true);
+      setQuizApplicationId(applicationId);
+
+      const quizStartResponse = await applicationService.startQuiz(applicationId);
+      const questions = quizStartResponse.questions || [];
+
+      if (!questions.length) {
+        setQuizModalOpen(false);
+        setUiMessage({
+          type: 'error',
+          text: 'Quiz questions are not available right now. Please try again in a moment.'
+        });
+        return;
+      }
+
+      setQuizQuestions(questions);
+      setQuizAnswers({});
+      setQuizCurrentIndex(0);
+    } catch (error) {
+      console.error('Error taking quiz:', error);
+      setQuizModalOpen(false);
+      setUiMessage({
+        type: 'error',
+        text: getErrorMessage(error, 'Unable to start quiz right now. Please try again.')
+      });
+    } finally {
+      setQuizLoading(false);
+    }
+  };
+
+  const handleSelectQuizAnswer = (questionId, option) => {
+    setQuizAnswers((prev) => ({
+      ...prev,
+      [questionId]: option
+    }));
+  };
+
+  const handleCloseQuizModal = () => {
+    if (quizSubmitting) return;
+    setQuizModalOpen(false);
+    setQuizLoading(false);
+    setQuizSubmitting(false);
+    setQuizQuestions([]);
+    setQuizAnswers({});
+    setQuizCurrentIndex(0);
+    setQuizApplicationId(null);
+  };
+
+  const handleSubmitQuiz = async () => {
+    if (!quizQuestions.length || !quizApplicationId) return;
+
+    const unanswered = quizQuestions.filter((question) => !quizAnswers[question._id]);
+    if (unanswered.length > 0) {
+      setUiMessage({
+        type: 'error',
+        text: `Please answer all questions before submitting. ${unanswered.length} question(s) remaining.`
+      });
+      return;
+    }
+
+    try {
+      setQuizSubmitting(true);
+      const answersPayload = quizQuestions.map((question) => ({
+        questionId: question._id,
+        selectedAnswer: quizAnswers[question._id]
+      }));
+
+      const submitResponse = await applicationService.submitApplicationQuiz(quizApplicationId, answersPayload);
+      const resultText = submitResponse.passed
+        ? `Quiz completed successfully! You scored ${submitResponse.percentage}%. Your application is sent to mentor for verification.`
+        : `Quiz completed. You scored ${submitResponse.percentage}%. You did not reach the passing score.`;
+
+      handleCloseQuizModal();
+      setQuizResultModal({
+        open: true,
+        passed: !!submitResponse.passed,
+        percentage: submitResponse.percentage || 0,
+        text: resultText,
+        applicationId: quizApplicationId
+      });
+    } catch (error) {
+      console.error('Error submitting quiz:', error);
+      setUiMessage({
+        type: 'error',
+        text: getErrorMessage(error, 'Unable to submit quiz right now. Please try again.')
+      });
+    } finally {
+      setQuizSubmitting(false);
+    }
+  };
+
+  const handleQuizResultOk = () => {
+    const statusType = quizResultModal.passed ? 'pending_mentor' : 'quiz_failed';
+
+    if (quizResultModal.applicationId) {
+      setRecentApplications((prev) =>
+        prev.map((application) =>
+          application.id === quizResultModal.applicationId
+            ? {
+                ...application,
+                statusType,
+                status: formatApplicationStatus(statusType),
+                quizScore: quizResultModal.percentage
+              }
+            : application
+        )
+      );
+    }
+
+    setQuizResultModal({
+      open: false,
+      passed: false,
+      percentage: 0,
+      text: '',
+      applicationId: null
+    });
+    fetchDashboardData(false);
+  };
+
+  const handleInfoModalOk = () => {
+    setInfoModal({
+      open: false,
+      title: '',
+      text: ''
+    });
   };
 
   const formatApplicationStatus = (statusType) => {
@@ -234,6 +405,8 @@ const StudentDashboard = () => {
     return Math.round(score);
   };
 
+  const remainingProfileCompletion = Math.max(0, 100 - (profileCompletion || 0));
+
   if (loading) {
     return (
       <div className="student-dashboard">
@@ -281,48 +454,58 @@ const StudentDashboard = () => {
         <p>Here's what's happening with your applications today.</p>
       </div>
 
-      {/* Main Content */}
-      <div className="dashboard-main">
-        <div className="dashboard-left">
-          {/* Stats Grid */}
-          <div className="stats-grid">
-            <div className="stat-card">
-              <div className="stat-icon" style={{ backgroundColor: '#e0e7ff' }}>📋</div>
-              <div className="stat-content">
-                <div className="stat-number">{stats.applications}</div>
-                <div className="stat-label">Applications</div>
-                <div className="stat-change">+{stats.applicationsThisWeek} this week</div>
-              </div>
-            </div>
+      {uiMessage && (
+        <div className={`dashboard-message ${uiMessage.type === 'success' ? 'message-success' : 'message-error'}`}>
+          <span>{uiMessage.text}</span>
+          <button type="button" className="message-close" onClick={() => setUiMessage(null)}>
+            ×
+          </button>
+        </div>
+      )}
 
-            <div className="stat-card">
-              <div className="stat-icon" style={{ backgroundColor: '#f0fdf4' }}>📅</div>
-              <div className="stat-content">
-                <div className="stat-number">{stats.interviews}</div>
-                <div className="stat-label">Interviews</div>
-                <div className="stat-change">{stats.interviews > 0 ? stats.interviews + ' upcoming' : '0 upcoming'}</div>
-              </div>
-            </div>
-
-            <div className="stat-card">
-              <div className="stat-icon" style={{ backgroundColor: '#f0fdf4' }}>⭐</div>
-              <div className="stat-content">
-                <div className="stat-number">{stats.shortlisted}</div>
-                <div className="stat-label">Shortlisted</div>
-                <div className="stat-change">+{stats.shortlisted} new</div>
-              </div>
-            </div>
-
-            <div className="stat-card">
-              <div className="stat-icon" style={{ backgroundColor: '#fef3c7' }}>👁️</div>
-              <div className="stat-content">
-                <div className="stat-number">{stats.profileViews}</div>
-                <div className="stat-label">Profile Views</div>
-                <div className="stat-change">+{stats.profileViews} this week</div>
-              </div>
+      <div className="stats-wrapper">
+        <div className="stats-grid">
+          <div className="stat-card">
+            <div className="stat-icon" style={{ backgroundColor: '#e0e7ff' }}>📋</div>
+            <div className="stat-content">
+              <div className="stat-number">{stats.applications}</div>
+              <div className="stat-label">Applications</div>
+              <div className="stat-change">{stats.applicationsThisWeek} this week</div>
             </div>
           </div>
 
+          <div className="stat-card">
+            <div className="stat-icon" style={{ backgroundColor: '#f0fdf4' }}>📅</div>
+            <div className="stat-content">
+              <div className="stat-number">{stats.interviews}</div>
+              <div className="stat-label">Interviews</div>
+              <div className="stat-change">{stats.interviews} upcoming</div>
+            </div>
+          </div>
+
+          <div className="stat-card">
+            <div className="stat-icon" style={{ backgroundColor: '#f0fdf4' }}>⭐</div>
+            <div className="stat-content">
+              <div className="stat-number">{stats.shortlisted}</div>
+              <div className="stat-label">Shortlisted</div>
+              <div className="stat-change">{stats.shortlisted} new</div>
+            </div>
+          </div>
+
+          <div className="stat-card">
+            <div className="stat-icon" style={{ backgroundColor: '#fef3c7' }}>👁️</div>
+            <div className="stat-content">
+              <div className="stat-number">{stats.profileViews}</div>
+              <div className="stat-label">Profile Views</div>
+              <div className="stat-change">{stats.profileViews} this week</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="dashboard-main">
+        <div className="dashboard-left">
           {/* Recent Applications */}
           <div className="section-card">
             <div className="section-header">
@@ -349,9 +532,16 @@ const StudentDashboard = () => {
                     </div>
                     <div className="app-middle">
                       {app.statusType === 'quiz_pending' && (
-                        <span className="quiz-badge">Take Quiz →</span>
+                        <button
+                          type="button"
+                          className="quiz-badge"
+                          disabled={quizLoading || quizSubmitting}
+                          onClick={() => handleTakeQuiz(app.id)}
+                        >
+                          Take Quiz →
+                        </button>
                       )}
-                      {app.quizScore && (
+                      {app.quizScore !== undefined && app.quizScore !== null && (
                         <span className="quiz-score">Score: {app.quizScore}%</span>
                       )}
                       {app.interviewDate && (
@@ -435,11 +625,11 @@ const StudentDashboard = () => {
                 <span>👤</span>
                 <span>Update Profile</span>
               </button>
-              <button className="action-item" onClick={() => navigate('/student/profile')}>
+              <button className="action-item" onClick={handleQuickUploadResume}>
                 <span>📤</span>
                 <span>Upload Resume</span>
               </button>
-              <button className="action-item" onClick={() => console.log('Add skills')}>
+              <button className="action-item" onClick={handleQuickAddSkill}>
                 <span>➕</span>
                 <span>Add Skills</span>
               </button>
@@ -462,16 +652,23 @@ const StudentDashboard = () => {
               <span className="completion-percent">{profileCompletion}%</span>
             </div>
             <div className="completion-items-list">
-              {missingProfileItems.length === 0 ? (
+              {profileCompletion >= 100 ? (
                 <p className="all-done">✅ All done! Your profile is complete</p>
               ) : (
                 <>
-                  <span className="items-count">{missingProfileItems.length} items left:</span>
-                  <div className="items-tags">
-                    {missingProfileItems.map((item, idx) => (
-                      <span key={idx} className="item-tag">{item}</span>
-                    ))}
-                  </div>
+                  <p className="completion-remaining">
+                    Your profile has {remainingProfileCompletion}% remaining. Complete it for better placement chances.
+                  </p>
+                  {missingProfileItems.length > 0 && (
+                    <>
+                      <span className="items-count">{missingProfileItems.length} items left:</span>
+                      <div className="items-tags">
+                        {missingProfileItems.map((item, idx) => (
+                          <span key={idx} className="item-tag">{item}</span>
+                        ))}
+                      </div>
+                    </>
+                  )}
                 </>
               )}
             </div>
@@ -491,6 +688,117 @@ const StudentDashboard = () => {
           </div>
         </div>
       </div>
+
+      {quizModalOpen && (
+        <div className="quiz-modal-overlay">
+          <div className="quiz-modal">
+            <div className="quiz-modal-header">
+              <h3>Job Screening Quiz</h3>
+              <button type="button" className="quiz-close" onClick={handleCloseQuizModal} disabled={quizSubmitting}>
+                ×
+              </button>
+            </div>
+
+            {quizLoading ? (
+              <div className="quiz-loading">Loading quiz questions...</div>
+            ) : (
+              <>
+                <div className="quiz-progress">
+                  <span>Question {quizCurrentIndex + 1} of {quizQuestions.length}</span>
+                  <span>{Object.keys(quizAnswers).length}/{quizQuestions.length} answered</span>
+                </div>
+
+                {quizQuestions[quizCurrentIndex] && (
+                  <div className="quiz-question-block">
+                    <p className="quiz-question-text">{quizQuestions[quizCurrentIndex].question}</p>
+                    <div className="quiz-options">
+                      {quizQuestions[quizCurrentIndex].options.map((option, optionIndex) => {
+                        const questionId = quizQuestions[quizCurrentIndex]._id;
+                        const isSelected = quizAnswers[questionId] === option;
+
+                        return (
+                          <button
+                            key={`${questionId}-${optionIndex}`}
+                            type="button"
+                            className={`quiz-option ${isSelected ? 'quiz-option-selected' : ''}`}
+                            onClick={() => handleSelectQuizAnswer(questionId, option)}
+                            disabled={quizSubmitting}
+                          >
+                            <span className="quiz-option-label">{String.fromCharCode(65 + optionIndex)}</span>
+                            <span>{option}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                <div className="quiz-actions">
+                  <button
+                    type="button"
+                    className="quiz-nav-btn"
+                    onClick={() => setQuizCurrentIndex((prev) => Math.max(prev - 1, 0))}
+                    disabled={quizCurrentIndex === 0 || quizSubmitting}
+                  >
+                    Previous
+                  </button>
+
+                  {quizCurrentIndex < quizQuestions.length - 1 ? (
+                    <button
+                      type="button"
+                      className="quiz-nav-btn quiz-nav-primary"
+                      onClick={() => setQuizCurrentIndex((prev) => Math.min(prev + 1, quizQuestions.length - 1))}
+                      disabled={quizSubmitting}
+                    >
+                      Next
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="quiz-nav-btn quiz-submit-btn"
+                      onClick={handleSubmitQuiz}
+                      disabled={quizSubmitting}
+                    >
+                      {quizSubmitting ? 'Submitting...' : 'Submit Quiz'}
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {quizResultModal.open && (
+        <div className="quiz-result-overlay">
+          <div className="quiz-result-modal">
+            <div className={`quiz-result-icon ${quizResultModal.passed ? 'result-pass' : 'result-fail'}`}>
+              {quizResultModal.passed ? '✅' : '❌'}
+            </div>
+            <h3 className="quiz-result-title">
+              {quizResultModal.passed ? 'Quiz Passed' : 'Quiz Failed'}
+            </h3>
+            <p className="quiz-result-score">Score: {quizResultModal.percentage}%</p>
+            <p className="quiz-result-text">{quizResultModal.text}</p>
+            <button type="button" className="quiz-result-ok" onClick={handleQuizResultOk}>
+              OK
+            </button>
+          </div>
+        </div>
+      )}
+
+      {infoModal.open && (
+        <div className="quiz-result-overlay">
+          <div className="quiz-result-modal">
+            <div className="quiz-result-icon result-pass">ℹ️</div>
+            <h3 className="quiz-result-title">{infoModal.title}</h3>
+            <p className="quiz-result-text">{infoModal.text}</p>
+            <button type="button" className="quiz-result-ok" onClick={handleInfoModalOk}>
+              OK
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

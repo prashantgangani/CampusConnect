@@ -2,6 +2,7 @@ import express from 'express';
 import {
   getStudentApplications,
   applyForJob,
+  startQuiz,
   submitQuiz,
   getApplicationDetail,
   withdrawApplication,
@@ -22,8 +23,15 @@ router.get('/', getStudentApplications);
 // Apply for a job
 router.post('/apply', applyForJob);
 
+// Start quiz for an application
+router.post('/start-quiz', startQuiz);
+router.get('/:applicationId/start-quiz', startQuiz);
+router.get('/start-quiz/:applicationId', startQuiz);
+router.get('/startQuiz/:applicationId', startQuiz);
+
 // Submit quiz answers
 router.post('/submit-quiz', submitQuiz);
+router.post('/submitQuiz', submitQuiz);
 
 // Get specific application details
 router.get('/:applicationId', getApplicationDetail);

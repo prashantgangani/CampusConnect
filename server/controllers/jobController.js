@@ -1,4 +1,5 @@
 import Job from '../models/Job.js';
+import Application from '../models/Application.js';
 
 // Create a new job posting
 export const createJob = async (req, res) => {
@@ -41,10 +42,10 @@ export const createJob = async (req, res) => {
 // Get all jobs (for students and mentors - only approved jobs)
 export const getAllJobs = async (req, res) => {
   try {
-    // Return all jobs that are currently active, regardless of placement approval.
-    // Companies' posted jobs will be visible immediately as 'active'.
+    // Only approved + active jobs should be visible to students/mentors.
     const jobs = await Job.find({
-      status: 'active'
+      status: 'active',
+      approvalStatus: 'approved'
     })
       .populate('company', 'name email')
       .sort({ createdAt: -1 });
@@ -310,6 +311,64 @@ export const rejectJob = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to reject job',
+      error: error.message
+    });
+  }
+};
+
+// Company dashboard stats (company-specific)
+export const getCompanyStats = async (req, res) => {
+  try {
+    const companyId = req.user._id;
+
+    const companyJobs = await Job.find({ company: companyId }).select('_id status').lean();
+    const companyJobIds = companyJobs.map((job) => job._id);
+
+    const activeJobs = companyJobs.filter(
+      (job) => !job.status || job.status === 'active'
+    ).length;
+
+    if (companyJobIds.length === 0) {
+      return res.status(200).json({
+        success: true,
+        stats: {
+          activeJobs: 0,
+          applicants: 0,
+          interviews: 0,
+          hired: 0
+        }
+      });
+    }
+
+    const [applicants, interviews, hired] = await Promise.all([
+      Application.countDocuments({
+        jobId: { $in: companyJobIds },
+        status: { $ne: 'withdrawn' }
+      }),
+      Application.countDocuments({
+        jobId: { $in: companyJobIds },
+        status: 'interview_scheduled'
+      }),
+      Application.countDocuments({
+        jobId: { $in: companyJobIds },
+        status: { $in: ['selected', 'offer_accepted'] }
+      })
+    ]);
+
+    res.status(200).json({
+      success: true,
+      stats: {
+        activeJobs,
+        applicants,
+        interviews,
+        hired
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching company stats:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch company stats',
       error: error.message
     });
   }

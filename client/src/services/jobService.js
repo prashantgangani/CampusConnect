@@ -34,6 +34,16 @@ const jobService = {
     }
   },
 
+  // Get company-specific dashboard stats
+  getCompanyStats: async () => {
+    try {
+      const response = await api.get('/jobs/company/stats');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+
   // Get job by ID
   getJobById: async (jobId) => {
     try {

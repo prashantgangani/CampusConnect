@@ -14,11 +14,11 @@ const quizResultSchema = new mongoose.Schema({
   quizId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Quiz',
-    required: true
+    required: false
   },
   answers: [{
     questionId: mongoose.Schema.Types.ObjectId,
-    selectedAnswer: Number,
+    selectedAnswer: mongoose.Schema.Types.Mixed,
     isCorrect: Boolean,
     marksObtained: Number
   }],

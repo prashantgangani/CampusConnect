@@ -24,6 +24,13 @@ const applicationSchema = new mongoose.Schema({
   quizAttemptedAt: {
     type: Date
   },
+  quizQuestionIds: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Question'
+  }],
+  quizStartedAt: {
+    type: Date
+  },
   interviewDate: {
     type: Date
   },
