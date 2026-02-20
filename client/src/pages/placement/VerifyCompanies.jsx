@@ -114,51 +114,39 @@ const VerifyCompanies = () => {
 
   if (loading) {
     return (
-      <div className="verify-companies-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
-        <div className="loading">Loading pending jobs...</div>
+      <div className="verify-companies-container min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white flex items-center justify-center px-6 py-10">
+        <div className="rounded-2xl bg-slate-900/80 border border-slate-700 px-8 py-6 text-slate-200 font-semibold shadow-lg">
+          Loading pending jobs...
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="verify-companies-container">
-        <div className="verify-companies-header">
+      <div className="verify-companies-container min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white px-6 py-8">
+        <div className="verify-companies-header bg-slate-800 rounded-2xl shadow-lg p-6 md:p-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="header-content">
-            <h1>Verify Companies</h1>
-            <p>Review and approve job postings from companies</p>
+            <h1 className="text-3xl font-bold text-white">Verify Companies</h1>
+            <p className="text-slate-300">Review and approve job postings from companies</p>
           </div>
           <button
             onClick={() => navigate('/placement/dashboard')}
-            className="back-btn"
+            className="back-btn rounded-lg border border-slate-600 bg-slate-700 px-4 py-2 text-white font-semibold transition hover:bg-slate-600"
           >
             Back to Dashboard
           </button>
         </div>
-        <div className="error-message" style={{
-          backgroundColor: '#fee2e2',
-          color: '#991b1b',
-          padding: '20px',
-          borderRadius: '8px',
-          marginBottom: '20px',
-          border: '1px solid #ef4444'
-        }}>
-          <h3>Error Loading Jobs</h3>
-          <p>{error}</p>
-          <p style={{ fontSize: '12px', marginTop: '10px' }}>
+
+        <div className="mt-6 rounded-2xl border border-red-500 bg-red-950/70 p-6 text-red-100 shadow-lg">
+          <h3 className="text-xl font-bold">Error Loading Jobs</h3>
+          <p className="mt-2 text-red-100">{error}</p>
+          <p className="mt-2 text-sm text-red-200">
             Please check your connection, or try refreshing the page.
           </p>
           <button
             onClick={fetchPendingJobs}
-            style={{
-              marginTop: '10px',
-              backgroundColor: '#dc2626',
-              color: 'white',
-              border: 'none',
-              padding: '8px 16px',
-              borderRadius: '6px',
-              cursor: 'pointer'
-            }}
+            className="mt-4 rounded-lg bg-red-600 px-4 py-2 text-white font-semibold transition hover:bg-red-500"
           >
             Retry
           </button>
@@ -168,23 +156,22 @@ const VerifyCompanies = () => {
   }
 
   return (
-    <div className="verify-companies-container">
-      <div className="verify-companies-header">
+    <div className="verify-companies-container min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white px-6 py-8">
+      <div className="verify-companies-header bg-slate-800 rounded-2xl shadow-lg p-6 md:p-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div className="header-content">
-          <h1>Verify Companies</h1>
-          <p>Review and approve job postings from companies</p>
+          <h1 className="text-3xl font-bold text-white">Verify Companies</h1>
+          <p className="text-slate-300">Review and approve job postings from companies</p>
         </div>
-        <div style={{ display: 'flex', gap: '10px' }}>
+        <div className="flex flex-wrap gap-3">
           <button
             onClick={fetchPendingJobs}
-            className="back-btn"
-            style={{ backgroundColor: '#10b981', color: 'white', borderColor: '#059669' }}
+            className="back-btn rounded-lg border border-emerald-500/60 bg-emerald-600 px-4 py-2 text-white font-semibold transition hover:bg-emerald-500"
           >
             🔄 Refresh Jobs
           </button>
           <button
             onClick={() => navigate('/placement/dashboard')}
-            className="back-btn"
+            className="back-btn rounded-lg border border-slate-600 bg-slate-700 px-4 py-2 text-white font-semibold transition hover:bg-slate-600"
           >
             Back to Dashboard
           </button>
@@ -192,38 +179,42 @@ const VerifyCompanies = () => {
       </div>
 
       {message.text && (
-        <div className={`message ${message.type}`}>
+        <div
+          className={`mt-6 rounded-xl border px-4 py-3 text-sm font-semibold shadow-lg ${
+            message.type === 'success'
+              ? 'border-emerald-500/50 bg-emerald-900/40 text-emerald-100'
+              : 'border-red-500/60 bg-red-950/70 text-red-100'
+          }`}
+        >
           {message.text}
         </div>
       )}
 
-      {/* Debug Info */}
-      <div style={{
-        backgroundColor: '#f0f9ff',
-        color: '#0369a1',
-        padding: '12px 16px',
-        borderRadius: '8px',
-        marginBottom: '20px',
-        border: '1px solid #0ea5e9',
-        fontSize: '12px'
-      }}>
-        <strong>🔐 Debug Info:</strong>
-        <div>Current Role: <strong>{JSON.parse(localStorage.getItem('user') || '{}').role || 'Not set'}</strong></div>
-        <div>Token Present: <strong>{localStorage.getItem('token') ? '✅ Yes' : '❌ No'}</strong></div>
-      </div>
-
-      <div className="jobs-summary">
-        <div className="summary-card">
-          <h3>{jobs.length}</h3>
-          <p>Pending Approvals</p>
+      <div className="mt-6 rounded-xl border border-blue-500/30 bg-slate-900 p-4 text-slate-200 shadow-lg">
+        <div className="text-sm font-bold">🔐 Debug Info</div>
+        <div className="mt-2 text-sm">
+          <span className="font-semibold">Current Role:</span>{' '}
+          {JSON.parse(localStorage.getItem('user') || '{}').role || 'Not set'}
+        </div>
+        <div className="text-sm">
+          <span className="font-semibold">Token Present:</span>{' '}
+          {localStorage.getItem('token') ? '✅ Yes' : '❌ No'}
         </div>
       </div>
 
-      <div className="pending-jobs-list">
+      <div className="jobs-summary mt-6">
+        <div className="summary-card bg-slate-800 rounded-2xl shadow-lg p-8 text-center transition hover:-translate-y-1">
+          <h3 className="text-5xl font-bold text-amber-400">{jobs.length}</h3>
+          <p className="mt-2 text-slate-300 font-medium">Pending Approvals</p>
+        </div>
+      </div>
+
+      <div className="pending-jobs-list mt-6">
         {jobs.length === 0 ? (
-          <div className="no-jobs">
-            <h3>No pending jobs</h3>
-            <p>All job postings have been reviewed.</p>
+          <div className="no-jobs bg-slate-800 rounded-2xl shadow-lg py-16 text-center">
+            <div className="text-5xl">📭</div>
+            <h3 className="mt-4 text-xl font-bold text-white">No pending jobs</h3>
+            <p className="mt-2 text-slate-400">All job postings have been reviewed.</p>
           </div>
         ) : (
           jobs.map(job => (
