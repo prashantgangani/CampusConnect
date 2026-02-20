@@ -1,5 +1,6 @@
 import StudentProfile from '../models/StudentProfile.js';
 import User from '../models/User.js';
+import SuggestedJob from '../models/SuggestedJob.js';
 
 // Get student profile
 export const getStudentProfile = async (req, res) => {
@@ -128,6 +129,34 @@ export const deleteResume = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error deleting resume',
+      error: error.message
+    });
+  }
+};
+
+// Get mentor-suggested jobs for student
+export const getSuggestedJobs = async (req, res) => {
+  try {
+    const suggestions = await SuggestedJob.find({ student: req.user._id })
+      .populate('mentor', 'name email')
+      .populate({
+        path: 'job',
+        populate: {
+          path: 'company',
+          select: 'name email'
+        }
+      })
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      suggestions
+    });
+  } catch (error) {
+    console.error('Error fetching suggested jobs:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch suggested jobs',
       error: error.message
     });
   }

@@ -3,7 +3,6 @@ import {
   createJob,
   getAllJobs,
   getJobsByCompany,
-  getCompanyStats,
   getJobById,
   updateJob,
   deleteJob,
@@ -24,14 +23,11 @@ router.get('/pending', authorize('placement'), getPendingJobs);
 // Create a new job (company only)
 router.post('/', authorize('company'), createJob);
 
-// Get all jobs (approved jobs for students/mentors)
-router.get('/', getAllJobs);
+// Get all jobs (students get approved active, mentors get all company posts)
+router.get('/', authorize('student', 'mentor'), getAllJobs);
 
 // Get jobs by company (all jobs for company)
 router.get('/company', authorize('company'), getJobsByCompany);
-
-// Get company dashboard stats (company-specific)
-router.get('/company/stats', authorize('company'), getCompanyStats);
 
 // Temporary route to check all jobs (for debugging)
 router.get('/debug-all', async (req, res) => {

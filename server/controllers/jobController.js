@@ -42,11 +42,17 @@ export const createJob = async (req, res) => {
 // Get all jobs (for students and mentors - only approved jobs)
 export const getAllJobs = async (req, res) => {
   try {
-    // Only approved + active jobs should be visible to students/mentors.
-    const jobs = await Job.find({
-      status: 'active',
-      approvalStatus: 'approved'
-    })
+    const role = req.user?.role;
+
+    // Mentors can review all company posts for suggestion workflows.
+    const query = role === 'mentor'
+      ? {}
+      : {
+          status: 'active',
+          approvalStatus: 'approved'
+        };
+
+    const jobs = await Job.find(query)
       .populate('company', 'name email')
       .sort({ createdAt: -1 });
 

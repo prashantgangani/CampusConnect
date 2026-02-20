@@ -2,7 +2,8 @@ import express from 'express';
 import { 
   getStudentProfile, 
   updateStudentProfile, 
-  deleteResume 
+  deleteResume,
+  getSuggestedJobs
 } from '../controllers/studentController.js';
 import { protect } from '../middlewares/authMiddleware.js';
 import { authorize } from '../middlewares/roleMiddleware.js';
@@ -21,5 +22,8 @@ router.put('/profile', updateStudentProfile);
 
 // Delete resume
 router.delete('/profile/resume', deleteResume);
+
+// Get mentor suggestions for logged-in student
+router.get('/suggestions', getSuggestedJobs);
 
 export default router;

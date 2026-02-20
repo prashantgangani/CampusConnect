@@ -8,6 +8,8 @@ import authRoutes from "./routes/authRoutes.js";
 import jobRoutes from "./routes/jobRoutes.js";
 import debugRoutes from "./routes/debugRoutes.js";
 import studentRoutes from "./routes/studentRoutes.js";
+import mentorRoutes from "./routes/mentorRoutes.js";
+import placementRoutes from "./routes/placementRoutes.js";
 import applicationRoutes from "./routes/applicationRoutes.js";
 import quizRoutes from "./routes/quizRoutes.js";
 
@@ -26,6 +28,8 @@ app.use("/api/auth", authRoutes);
 app.use("/api/jobs", jobRoutes);
 app.use("/api/debug", debugRoutes);
 app.use("/api/student", studentRoutes);
+app.use("/api/mentor", mentorRoutes);
+app.use("/api/placement", placementRoutes);
 app.use("/api/applications", applicationRoutes);
 app.use("/api/quiz", quizRoutes);
 

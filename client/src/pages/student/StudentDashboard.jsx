@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import jobService from '../../services/jobService';
 import applicationService from '../../services/applicationService';
+import api from '../../services/api';
 import './Dashboard.css';
 
 const StudentDashboard = () => {
@@ -19,6 +20,8 @@ const StudentDashboard = () => {
   
   const [recentApplications, setRecentApplications] = useState([]);
   const [availableOpportunities, setAvailableOpportunities] = useState([]);
+  const [suggestedJobs, setSuggestedJobs] = useState([]);
+  const [suggestedJobMap, setSuggestedJobMap] = useState({});
   const [loading, setLoading] = useState(true);
   const [profileCompletion, setProfileCompletion] = useState(35);
   const [missingProfileItems, setMissingProfileItems] = useState([]);
@@ -53,38 +56,32 @@ const StudentDashboard = () => {
     return fallback;
   };
 
-  const fetchDashboardData = async (showLoader = true) => {
+  const fetchDashboardData = useCallback(async (showLoader = true) => {
     try {
       if (showLoader) setLoading(true);
 
-      const profileRes = await fetch('http://localhost:5000/api/student/profile', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const profileResponse = await api.get('/student/profile');
+      const profileData = profileResponse?.data;
 
       let studentProfileData = null;
-      if (profileRes.ok) {
-        const profileData = await profileRes.json();
-        if (profileData.data) {
-          studentProfileData = profileData.data;
-          setStudentProfile(profileData.data);
-          setProfileCompletion(profileData.data.profileCompletion || 35);
+      if (profileData?.data) {
+        studentProfileData = profileData.data;
+        setStudentProfile(profileData.data);
+        setProfileCompletion(profileData.data.profileCompletion || 35);
 
-          const missing = [];
-          if (!profileData.data.phone) missing.push('Phone');
-          if (!profileData.data.cgpa) missing.push('CGPA');
-          if (!profileData.data.skills || profileData.data.skills.length === 0) missing.push('Skills');
-          if (!profileData.data.resume) missing.push('Resume');
-          setMissingProfileItems(missing);
-        }
+        const missing = [];
+        if (!profileData.data.phone) missing.push('Phone');
+        if (!profileData.data.cgpa) missing.push('CGPA');
+        if (!profileData.data.skills || profileData.data.skills.length === 0) missing.push('Skills');
+        if (!profileData.data.resume) missing.push('Resume');
+        setMissingProfileItems(missing);
       }
 
-      const applicationsRes = await fetch('http://localhost:5000/api/applications', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const applicationsResponse = await api.get('/applications');
+      const appData = applicationsResponse?.data;
 
       let applications = [];
-      if (applicationsRes.ok) {
-        const appData = await applicationsRes.json();
+      if (appData) {
         applications = appData.data || [];
 
         const processed = applications.map((app) => ({
@@ -126,9 +123,36 @@ const StudentDashboard = () => {
 
       const jobsResponse = await jobService.getAllJobs();
       const jobs = jobsResponse.jobs || [];
+      const suggestionsResponse = await api.get('/student/suggestions');
+      const suggestions = suggestionsResponse?.data?.suggestions || [];
+      const normalizedSuggestions = suggestions.filter((suggestion) => suggestion?.job?._id);
+
+      setSuggestedJobs(normalizedSuggestions);
+
+      const suggestionLookup = suggestions.reduce((accumulator, suggestion) => {
+        const suggestionJobId = suggestion?.job?._id;
+        if (!suggestionJobId || accumulator[suggestionJobId]) {
+          return accumulator;
+        }
+
+        accumulator[suggestionJobId] = {
+          mentorName: suggestion?.mentor?.name || 'Mentor'
+        };
+        return accumulator;
+      }, {});
+
+      setSuggestedJobMap(suggestionLookup);
+
       const appliedJobIds = applications.map((app) => app.jobId?._id).filter(Boolean);
       const availableJobs = jobs.filter((job) => !appliedJobIds.includes(job._id));
-      setAvailableOpportunities(availableJobs.slice(0, 3));
+
+      const sortedJobs = availableJobs.sort((first, second) => {
+        const firstSuggested = suggestionLookup[first._id] ? 1 : 0;
+        const secondSuggested = suggestionLookup[second._id] ? 1 : 0;
+        return secondSuggested - firstSuggested;
+      });
+
+      setAvailableOpportunities(sortedJobs.slice(0, 3));
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
       setUiMessage({
@@ -138,14 +162,14 @@ const StudentDashboard = () => {
     } finally {
       if (showLoader) setLoading(false);
     }
-  };
+  }, []);
 
   // Fetch all dashboard data
   useEffect(() => {
     if (token) {
       fetchDashboardData(true);
     }
-  }, [token]);
+  }, [token, fetchDashboardData]);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -507,6 +531,56 @@ const StudentDashboard = () => {
       <div className="dashboard-main">
         <div className="dashboard-left">
           {/* Recent Applications */}
+          <div className="section-card suggested-jobs-section">
+            <div className="section-header">
+              <h3>
+                ⭐ Suggested by Your Mentor
+                {suggestedJobs.length > 0 && (
+                  <span className="suggestion-count-badge">{suggestedJobs.length}</span>
+                )}
+              </h3>
+            </div>
+
+            {suggestedJobs.length === 0 ? (
+              <div className="empty-state">
+                <p>No job suggestions from your mentor yet.</p>
+              </div>
+            ) : (
+              <div className="suggested-jobs-list">
+                {suggestedJobs.map((suggestion) => {
+                  const job = suggestion.job;
+                  return (
+                    <div key={suggestion._id} className="suggested-job-card">
+                      <div className="suggested-job-head">
+                        <span className="mentor-suggest-pill">Suggested by your mentor</span>
+                        <span className="suggested-mentor-name">Mentor: {suggestion.mentor?.name || 'Mentor'}</span>
+                      </div>
+
+                      <h4>{job?.title || 'Job Opportunity'}</h4>
+                      <p className="company-name">{job?.company?.name || 'Company'}</p>
+
+                      <div className="suggested-job-meta">
+                        <span>📍 {job?.location || 'Location not specified'}</span>
+                        <span>
+                          ⏳ {job?.applicationDeadline
+                            ? new Date(job.applicationDeadline).toLocaleDateString()
+                            : 'No deadline'}
+                        </span>
+                      </div>
+
+                      <div className="opp-actions">
+                        <span className="react-btn">Priority Recommendation</span>
+                        <button className="apply-btn" onClick={() => handleApplyJob(job._id)}>
+                          Apply Now →
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
           <div className="section-card">
             <div className="section-header">
               <h3>Recent Applications</h3>
@@ -580,9 +654,14 @@ const StudentDashboard = () => {
               <div className="opportunities-list">
                 {availableOpportunities.map((job) => {
                   const matchScore = calculateMatchScore(job);
+                  const suggestedMeta = suggestedJobMap[job._id];
+                  const isSuggested = Boolean(suggestedMeta);
                   return (
-                    <div key={job._id} className="opportunity-item">
+                    <div key={job._id} className={`opportunity-item ${isSuggested ? 'opportunity-item-suggested' : ''}`}>
                       <div style={{ marginBottom: '8px' }}>
+                        {isSuggested && (
+                          <span className="mentor-suggested-badge">⭐ Suggested by your Mentor</span>
+                        )}
                         <span className="placement-badge">placement</span>
                       </div>
                       <div className="opp-header">
