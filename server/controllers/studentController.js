@@ -1,11 +1,14 @@
 import StudentProfile from '../models/StudentProfile.js';
 import User from '../models/User.js';
 import SuggestedJob from '../models/SuggestedJob.js';
+import Application from '../models/Application.js';
 
 // Get student profile
 export const getStudentProfile = async (req, res) => {
   try {
-    const profile = await StudentProfile.findOne({ userId: req.user.id });
+    const profile = await StudentProfile.findOne({ userId: req.user.id })
+      .populate('mentor', 'name email')
+      .populate('mentorRequested', 'name email');
     
     if (!profile) {
       return res.status(404).json({
@@ -137,7 +140,19 @@ export const deleteResume = async (req, res) => {
 // Get mentor-suggested jobs for student
 export const getSuggestedJobs = async (req, res) => {
   try {
-    const suggestions = await SuggestedJob.find({ student: req.user._id })
+    const appliedJobIds = await Application.distinct('jobId', { studentId: req.user._id });
+
+    if (appliedJobIds.length > 0) {
+      await SuggestedJob.deleteMany({
+        student: req.user._id,
+        job: { $in: appliedJobIds }
+      });
+    }
+
+    const suggestions = await SuggestedJob.find({
+      student: req.user._id,
+      job: { $nin: appliedJobIds }
+    })
       .populate('mentor', 'name email')
       .populate({
         path: 'job',
@@ -157,6 +172,113 @@ export const getSuggestedJobs = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch suggested jobs',
+      error: error.message
+    });
+  }
+};
+
+export const searchMentors = async (req, res) => {
+  try {
+    const query = (req.query.q || '').trim().toLowerCase();
+
+    if (query.length < 3) {
+      return res.status(400).json({
+        success: false,
+        message: 'Search query must be at least 3 characters'
+      });
+    }
+
+    const mentors = await User.find({
+      role: 'mentor',
+      $or: [
+        { email: { $regex: query, $options: 'i' } },
+        { name: { $regex: query, $options: 'i' } }
+      ]
+    })
+      .select('_id name email institution')
+      .limit(10)
+      .lean();
+
+    return res.status(200).json({
+      success: true,
+      mentors
+    });
+  } catch (error) {
+    console.error('Error searching mentors:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to search mentors',
+      error: error.message
+    });
+  }
+};
+
+export const requestMentorByEmail = async (req, res) => {
+  try {
+    const mentorEmail = (req.body.mentorEmail || '').trim().toLowerCase();
+
+    if (!mentorEmail) {
+      return res.status(400).json({
+        success: false,
+        message: 'Mentor email is required'
+      });
+    }
+
+    const mentor = await User.findOne({ email: mentorEmail, role: 'mentor' }).select('_id name email');
+    if (!mentor) {
+      return res.status(404).json({
+        success: false,
+        message: 'No mentor found with this email'
+      });
+    }
+
+    let profile = await StudentProfile.findOne({ userId: req.user.id });
+    if (!profile) {
+      profile = new StudentProfile({
+        userId: req.user.id,
+        fullName: req.user.name,
+        email: req.user.email,
+        institution: req.user.institution || '',
+        skills: [],
+        links: {}
+      });
+    }
+
+    const alreadyPendingSameMentor =
+      profile.mentorRequestStatus === 'pending' &&
+      profile.mentorRequested?.toString() === mentor._id.toString();
+
+    if (alreadyPendingSameMentor) {
+      return res.status(400).json({
+        success: false,
+        message: 'Request already pending for this mentor'
+      });
+    }
+
+    profile.mentor = null;
+    profile.mentorRequested = mentor._id;
+    profile.mentorRequestedEmail = mentor.email;
+    profile.mentorRequestStatus = 'pending';
+    profile.mentorRequestedAt = new Date();
+    profile.mentorReviewedAt = null;
+    profile.mentorReviewNote = '';
+
+    await profile.save();
+
+    const refreshed = await StudentProfile.findOne({ userId: req.user.id })
+      .populate('mentor', 'name email')
+      .populate('mentorRequested', 'name email');
+
+    return res.status(200).json({
+      success: true,
+      message: 'Mentor request sent successfully. Please wait for verification.',
+      data: refreshed
+    });
+  } catch (error) {
+    console.error('Error requesting mentor by email:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to send mentor request',
       error: error.message
     });
   }

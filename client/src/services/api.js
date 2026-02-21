@@ -52,10 +52,13 @@ api.interceptors.response.use(
     }
 
     // Return a more detailed error object
-    const errorMessage = error.response?.data?.message || 
-                        error.response?.data?.error || 
-                        error.message || 
-                        'An error occurred';
+    const isNetworkError = !error.response;
+    const errorMessage = isNetworkError
+      ? 'Unable to connect to server. Please ensure backend is running on port 5000.'
+      : (error.response?.data?.message ||
+         error.response?.data?.error ||
+         error.message ||
+         'An error occurred');
     
     return Promise.reject({
       message: errorMessage,

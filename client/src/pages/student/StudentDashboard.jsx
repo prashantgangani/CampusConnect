@@ -81,8 +81,17 @@ const StudentDashboard = () => {
       const appData = applicationsResponse?.data;
 
       let applications = [];
+      let appliedJobIdsSet = new Set();
       if (appData) {
-        applications = appData.data || [];
+        const rawApplications = appData.data || [];
+        const seenJobIds = new Set();
+        applications = rawApplications.filter((application) => {
+          const jobId = application?.jobId?._id;
+          if (!jobId) return true;
+          if (seenJobIds.has(jobId)) return false;
+          seenJobIds.add(jobId);
+          return true;
+        });
 
         const processed = applications.map((app) => ({
           id: app._id,
@@ -99,6 +108,13 @@ const StudentDashboard = () => {
             day: 'numeric'
           })
         }));
+
+        appliedJobIdsSet = new Set(
+          applications
+            .map((app) => app?.jobId?._id)
+            .filter(Boolean)
+            .map((jobId) => String(jobId))
+        );
 
         setRecentApplications(processed);
 
@@ -125,7 +141,11 @@ const StudentDashboard = () => {
       const jobs = jobsResponse.jobs || [];
       const suggestionsResponse = await api.get('/student/suggestions');
       const suggestions = suggestionsResponse?.data?.suggestions || [];
-      const normalizedSuggestions = suggestions.filter((suggestion) => suggestion?.job?._id);
+      const normalizedSuggestions = suggestions.filter((suggestion) => {
+        const suggestionJobId = suggestion?.job?._id;
+        if (!suggestionJobId) return false;
+        return !appliedJobIdsSet.has(String(suggestionJobId));
+      });
 
       setSuggestedJobs(normalizedSuggestions);
 
@@ -143,8 +163,15 @@ const StudentDashboard = () => {
 
       setSuggestedJobMap(suggestionLookup);
 
-      const appliedJobIds = applications.map((app) => app.jobId?._id).filter(Boolean);
-      const availableJobs = jobs.filter((job) => !appliedJobIds.includes(job._id));
+      const appliedJobIds = applications
+        .map((app) => app.jobId?._id)
+        .filter(Boolean)
+        .map((jobId) => String(jobId));
+      const appliedJobIdsLookup = new Set(appliedJobIds);
+      const availableJobs = jobs.filter((job) => {
+        if (!job?._id) return false;
+        return !appliedJobIdsLookup.has(String(job._id));
+      });
 
       const sortedJobs = availableJobs.sort((first, second) => {
         const firstSuggested = suggestionLookup[first._id] ? 1 : 0;
@@ -193,6 +220,19 @@ const StudentDashboard = () => {
     try {
       const response = await applicationService.applyForJob(jobId);
       if (response.success) {
+        setSuggestedJobs((prev) =>
+          prev.filter((suggestion) => suggestion?.job?._id !== jobId)
+        );
+
+        setSuggestedJobMap((prev) => {
+          if (!prev[jobId]) return prev;
+          const updated = { ...prev };
+          delete updated[jobId];
+          return updated;
+        });
+
+        setAvailableOpportunities((prev) => prev.filter((job) => job?._id !== jobId));
+
         setInfoModal({
           open: true,
           title: 'Application Submitted',

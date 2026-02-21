@@ -96,6 +96,41 @@ const studentProfileSchema = new mongoose.Schema({
     type: String,
     trim: true
   }],
+
+  // Mentor Assignment
+  mentor: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
+  },
+  mentorRequested: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
+  },
+  mentorRequestedEmail: {
+    type: String,
+    trim: true,
+    lowercase: true
+  },
+  mentorRequestStatus: {
+    type: String,
+    enum: ['none', 'pending', 'verified', 'rejected'],
+    default: 'none'
+  },
+  mentorRequestedAt: {
+    type: Date,
+    default: null
+  },
+  mentorReviewedAt: {
+    type: Date,
+    default: null
+  },
+  mentorReviewNote: {
+    type: String,
+    trim: true,
+    default: ''
+  },
   
   // Profile completion percentage
   profileCompletion: {

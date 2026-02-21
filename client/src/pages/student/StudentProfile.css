@@ -152,6 +152,21 @@
   text-align: left;
 }
 
+.mentor-box.mentor-verified {
+  background: #ecfdf3;
+  border: 1px solid #86efac;
+}
+
+.mentor-box.mentor-pending {
+  background: #fef3c7;
+  border: 1px solid #fcd34d;
+}
+
+.mentor-box.mentor-rejected {
+  background: #fef2f2;
+  border: 1px solid #fca5a5;
+}
+
 .mentor-label {
   margin: 0 0 4px;
   font-size: 13px;
@@ -165,6 +180,142 @@
   font-size: 13px;
   font-weight: 600;
 }
+
+.mentor-value-success {
+  margin: 0;
+  color: #166534;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.mentor-value-warning {
+  margin: 0;
+  color: #92400e;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.mentor-value-error {
+  margin: 0;
+  color: #dc2626;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.mentor-refresh-btn {
+  margin-top: 8px;
+  width: 100%;
+  background: #f59e0b;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.mentor-refresh-btn:hover {
+  background: #d97706;
+}
+
+.mentor-request-box {
+  margin: 14px 0 10px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mentor-search-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.mentor-email-input {
+  width: 100%;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 13px;
+  background: #ffffff;
+  color: #1f2937;
+}
+
+.mentor-search-loading {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 11px;
+  color: #6b7280;
+}
+
+.mentor-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  margin-top: 4px;
+  max-height: 240px;
+  overflow-y: auto;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  z-index: 10;
+}
+
+.mentor-dropdown-item {
+  padding: 10px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid #f3f4f6;
+  transition: background 0.15s;
+}
+
+.mentor-dropdown-item:last-child {
+  border-bottom: none;
+}
+
+.mentor-dropdown-item:hover {
+  background: #f9fafb;
+}
+
+.mentor-dropdown-name {
+  font-weight: 600;
+  font-size: 13px;
+  color: #1f2937;
+  margin-bottom: 2px;
+}
+
+.mentor-dropdown-email {
+  font-size: 12px;
+  color: #6b7280;
+  margin-bottom: 2px;
+}
+
+.mentor-dropdown-institution {
+  font-size: 11px;
+  color: #9ca3af;
+}
+
+.mentor-request-btn {
+  width: 100%;
+  background: #1e40af;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 9px 12px;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.mentor-request-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 
 .profile-email {
   margin: 4px 0 12px;

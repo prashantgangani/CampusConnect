@@ -12,6 +12,7 @@ import CompanyDashboard from './pages/company/CompanyDashboard';
 import PostJob from './pages/company/PostJob';
 import ManageJobs from './pages/company/ManageJobs';
 import MentorDashboard from './pages/mentor/MentorDashboard';
+import StudentApprovals from './pages/mentor/StudentApprovals';
 import PlacementDashboard from './pages/placement/PlacementDashboard';
 import VerifyCompanies from './pages/placement/VerifyCompanies';
 import './App.css';
@@ -61,6 +62,10 @@ function App() {
             <Route 
               path="/mentor/dashboard" 
               element={<ProtectedRoute element={<MentorDashboard />} requiredRole="mentor" />} 
+            />
+            <Route 
+              path="/mentor/approvals" 
+              element={<ProtectedRoute element={<StudentApprovals />} requiredRole="mentor" />} 
             />
             
             {/* Placement Routes */}

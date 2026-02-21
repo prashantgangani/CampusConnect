@@ -9,6 +9,11 @@ const StudentProfile = () => {
   const [loading, setLoading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [message, setMessage] = useState({ text: '', type: '' });
+  const [mentorEmail, setMentorEmail] = useState('');
+  const [mentorSearchResults, setMentorSearchResults] = useState([]);
+  const [showMentorDropdown, setShowMentorDropdown] = useState(false);
+  const [searchingMentors, setSearchingMentors] = useState(false);
+  const [requestingMentor, setRequestingMentor] = useState(false);
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const [profileData, setProfileData] = useState({
     fullName: '',
@@ -20,6 +25,9 @@ const StudentProfile = () => {
     tenthMarks: '',
     twelfthMarks: '',
     skills: [],
+    mentor: null,
+    mentorRequested: null,
+    mentorRequestStatus: 'none',
     links: {
       linkedin: '',
       github: '',
@@ -291,6 +299,131 @@ const StudentProfile = () => {
     navigate('/login');
   };
 
+  const handleRequestMentor = async () => {
+    const email = mentorEmail.trim();
+    if (!email) {
+      setMessage({ text: 'Mentor email is required', type: 'error' });
+      return;
+    }
+
+    try {
+      setRequestingMentor(true);
+      const token = localStorage.getItem('token');
+      const response = await axios.post(
+        'http://localhost:5000/api/student/request-mentor',
+        { mentorEmail: email },
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      );
+
+      if (response.data.success) {
+        setMessage({ text: response.data.message || 'Mentor request sent!', type: 'success' });
+        setProfileData(prev => ({ ...prev, ...response.data.data }));
+        setMentorEmail('');
+        setMentorSearchResults([]);
+        setShowMentorDropdown(false);
+      }
+    } catch (error) {
+      console.error('Error requesting mentor:', error);
+      setMessage({
+        text: error.response?.data?.message || 'Failed to request mentor',
+        type: 'error'
+      });
+    } finally {
+      setRequestingMentor(false);
+    }
+  };
+
+  const handleMentorSearch = async (query) => {
+    setMentorEmail(query);
+
+    if (query.length < 3) {
+      setMentorSearchResults([]);
+      setShowMentorDropdown(false);
+      return;
+    }
+
+    try {
+      setSearchingMentors(true);
+      const token = localStorage.getItem('token');
+      const response = await axios.get(
+        `http://localhost:5000/api/student/search-mentors?q=${encodeURIComponent(query)}`,
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      );
+
+      if (response.data.success) {
+        setMentorSearchResults(response.data.mentors || []);
+        setShowMentorDropdown(true);
+      }
+    } catch (error) {
+      console.error('Error searching mentors:', error);
+      setMentorSearchResults([]);
+    } finally {
+      setSearchingMentors(false);
+    }
+  };
+
+  const handleSelectMentor = (mentor) => {
+    setMentorEmail(mentor.email);
+    setShowMentorDropdown(false);
+    setMentorSearchResults([]);
+  };
+
+  const renderMentorStatus = () => {
+    const status = profileData.mentorRequestStatus || 'none';
+
+    if (status === 'verified' && profileData.mentor) {
+      return (
+        <div className="mentor-box mentor-verified">
+          <p className="mentor-label">✅ Assigned Mentor</p>
+          <p className="mentor-value-success">
+            {profileData.mentor.name || 'Mentor'} ({profileData.mentor.email || ''})
+          </p>
+        </div>
+      );
+    }
+
+    if (status === 'pending' && profileData.mentorRequested) {
+      return (
+        <div className="mentor-box mentor-pending">
+          <p className="mentor-label">⏳ Request Pending</p>
+          <p className="mentor-value-warning">
+            Waiting for {profileData.mentorRequested.name || profileData.mentorRequested.email || 'mentor'} to verify
+          </p>
+          <button
+            type="button"
+            className="mentor-refresh-btn"
+            onClick={fetchProfile}
+            title="Refresh status"
+          >
+            🔄 Refresh
+          </button>
+        </div>
+      );
+    }
+
+    if (status === 'rejected') {
+      return (
+        <div className="mentor-box mentor-rejected">
+          <p className="mentor-label">❌ Request Rejected</p>
+          <p className="mentor-value-error">Request another mentor below</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="mentor-box">
+        <p className="mentor-label">⚙ Assigned Mentor</p>
+        <p className="mentor-value">⦿ No mentor selected — required!</p>
+      </div>
+    );
+  };
+
+  const canRequestMentor = !profileData.mentor && profileData.mentorRequestStatus !== 'pending';
+
   const profileCompletion = profileData.profileCompletion || 0;
 
   return (
@@ -330,10 +463,49 @@ const StudentProfile = () => {
             <p className="profile-meta">{profileData.department || 'No department'}</p>
             <p className="profile-meta muted">{profileData.institution || user.institution || 'charusat'}</p>
 
-            <div className="mentor-box">
-              <p className="mentor-label">⚙ Assigned Mentor</p>
-              <p className="mentor-value">⦿ No mentor selected — required!</p>
-            </div>
+            {renderMentorStatus()}
+
+            {canRequestMentor && (
+              <div className="mentor-request-box">
+                <div className="mentor-search-wrapper">
+                  <input
+                    type="text"
+                    className="mentor-email-input"
+                    value={mentorEmail}
+                    onChange={(e) => handleMentorSearch(e.target.value)}
+                    onFocus={() => mentorSearchResults.length > 0 && setShowMentorDropdown(true)}
+                    placeholder="Type mentor email (min 3 chars)"
+                    disabled={requestingMentor}
+                  />
+                  {searchingMentors && <div className="mentor-search-loading">Searching...</div>}
+                  {showMentorDropdown && mentorSearchResults.length > 0 && (
+                    <div className="mentor-dropdown">
+                      {mentorSearchResults.map((mentor) => (
+                        <div
+                          key={mentor._id}
+                          className="mentor-dropdown-item"
+                          onClick={() => handleSelectMentor(mentor)}
+                        >
+                          <div className="mentor-dropdown-name">{mentor.name}</div>
+                          <div className="mentor-dropdown-email">{mentor.email}</div>
+                          {mentor.institution && (
+                            <div className="mentor-dropdown-institution">{mentor.institution}</div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  className="mentor-request-btn"
+                  onClick={handleRequestMentor}
+                  disabled={requestingMentor || mentorEmail.length < 3}
+                >
+                  {requestingMentor ? 'Requesting...' : 'Request Mentor'}
+                </button>
+              </div>
+            )}
 
             <p className="profile-email">✉ {profileData.email || user.email || 'No email'}</p>
 

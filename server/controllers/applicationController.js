@@ -25,10 +25,28 @@ export const getStudentApplications = async (req, res) => {
       .populate('jobId.company', 'name')
       .sort({ createdAt: -1 });
 
+    const uniqueByJob = [];
+    const seenJobIds = new Set();
+
+    for (const application of applications) {
+      const jobId = application?.jobId?._id ? String(application.jobId._id) : null;
+      if (!jobId) {
+        uniqueByJob.push(application);
+        continue;
+      }
+
+      if (seenJobIds.has(jobId)) {
+        continue;
+      }
+
+      seenJobIds.add(jobId);
+      uniqueByJob.push(application);
+    }
+
     res.status(200).json({
       success: true,
-      count: applications.length,
-      data: applications
+      count: uniqueByJob.length,
+      data: uniqueByJob
     });
   } catch (error) {
     res.status(500).json({
@@ -61,17 +79,16 @@ export const applyForJob = async (req, res) => {
       });
     }
 
-    // Check for existing application
+    // Check for existing application on same job
     const existingApp = await Application.findOne({
       studentId,
-      jobId,
-      status: { $ne: 'quiz_failed' }
+      jobId
     });
 
     if (existingApp) {
       return res.status(400).json({
         success: false,
-        message: 'You have already applied for this position'
+        message: 'You have already applied for this position. Re-application is not allowed.'
       });
     }
 

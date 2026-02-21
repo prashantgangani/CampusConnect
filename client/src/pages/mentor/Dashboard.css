@@ -389,6 +389,185 @@
   padding: 10px 12px;
 }
 
+.mentor-modal-empty {
+  color: #94a3b8;
+  font-size: 13px;
+  margin: 8px 0 0;
+}
+
+.mentor-modal-select-all {
+  border: 1px solid #334155;
+  background: #1f2937;
+  border-radius: 8px;
+  padding: 10px;
+  margin-bottom: 10px;
+}
+
+.mentor-modal-select-all label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  margin: 0;
+}
+
+.mentor-modal-select-all input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.mentor-modal-student-list {
+  max-height: 280px;
+  overflow-y: auto;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  background: #111827;
+}
+
+.mentor-modal-student-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid #1f2937;
+  cursor: pointer;
+  margin: 0;
+}
+
+.mentor-modal-student-item:last-child {
+  border-bottom: none;
+}
+
+.mentor-modal-student-item:hover {
+  background: #0f172a;
+}
+
+.mentor-modal-student-item input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  margin: 0;
+  flex-shrink: 0;
+}
+
+.mentor-modal-student-name {
+  flex: 1;
+  color: #f8fafc;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.mentor-modal-student-email {
+  color: #94a3b8;
+  font-size: 12px;
+}
+
+.mentor-requests-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 18px;
+}
+
+.mentor-request-card {
+  border: 1px solid #334155;
+  background: #0f172a;
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mentor-request-header {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.mentor-request-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #1e3a8a;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.mentor-request-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mentor-request-name {
+  margin: 0;
+  color: #f8fafc;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.mentor-request-email {
+  margin: 0;
+  color: #94a3b8;
+  font-size: 13px;
+}
+
+.mentor-request-institution {
+  margin: 0;
+  color: #cbd5e1;
+  font-size: 12px;
+}
+
+.mentor-request-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.mentor-request-date {
+  color: #94a3b8;
+}
+
+.mentor-request-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.mentor-request-btn {
+  flex: 1;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 14px;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.mentor-request-btn.approve {
+  background: #166534;
+  color: #ecfdf3;
+}
+
+.mentor-request-btn.reject {
+  background: #991b1b;
+  color: #fef2f2;
+}
+
+.mentor-request-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+
+
 .mentor-modal-actions {
   margin-top: 16px;
   display: flex;

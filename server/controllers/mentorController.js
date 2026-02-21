@@ -1,10 +1,25 @@
 import Job from '../models/Job.js';
 import User from '../models/User.js';
 import SuggestedJob from '../models/SuggestedJob.js';
+import StudentProfile from '../models/StudentProfile.js';
 
 export const getStudentsForMentor = async (req, res) => {
 	try {
-		const students = await User.find({ role: 'student' })
+		const mentorId = req.user._id;
+
+		const verifiedProfiles = await StudentProfile.find({
+			mentor: mentorId,
+			mentorRequestStatus: 'verified'
+		})
+			.select('userId')
+			.lean();
+
+		const verifiedStudentIds = verifiedProfiles.map((profile) => profile.userId);
+
+		const students = await User.find({
+			_id: { $in: verifiedStudentIds },
+			role: 'student'
+		})
 			.select('_id name email institution')
 			.sort({ name: 1 });
 
@@ -144,6 +159,96 @@ export const getRecentSuggestions = async (req, res) => {
 		res.status(500).json({
 			success: false,
 			message: 'Failed to fetch recent suggestions',
+			error: error.message
+		});
+	}
+};
+
+export const getPendingMentorRequests = async (req, res) => {
+	try {
+		const mentorId = req.user._id;
+		const pendingProfiles = await StudentProfile.find({
+			mentorRequested: mentorId,
+			mentorRequestStatus: 'pending'
+		})
+			.populate('userId', 'name email institution')
+			.populate('mentorRequested', 'name email')
+			.select('userId fullName email institution mentorRequestedAt mentorReviewNote _id')
+			.sort({ mentorRequestedAt: -1 })
+			.lean();
+
+		const pendingRequests = pendingProfiles.map((profile) => ({
+			_id: profile._id,
+			profileId: profile._id,
+			studentId: profile.userId?._id || profile.userId,
+			studentName: profile.fullName || profile.userId?.name || 'Unknown',
+			studentEmail: profile.email || profile.userId?.email || 'No email',
+			studentInstitution: profile.institution || profile.userId?.institution || '',
+			requestedAt: profile.mentorRequestedAt,
+			note: profile.mentorReviewNote || ''
+		}));
+
+		return res.status(200).json({
+			success: true,
+			requests: pendingRequests
+		});
+	} catch (error) {
+		console.error('Error fetching pending requests:', error);
+		return res.status(500).json({
+			success: false,
+			message: 'Failed to fetch pending mentor requests',
+			error: error.message
+		});
+	}
+};
+
+export const reviewMentorRequest = async (req, res) => {
+	try {
+		const { profileId, action, note } = req.body;
+		const mentorId = req.user._id;
+
+		if (!profileId || !['approve', 'reject'].includes(action)) {
+			return res.status(400).json({
+				success: false,
+				message: 'profileId and action (approve/reject) are required'
+			});
+		}
+
+		const profile = await StudentProfile.findOne({
+			_id: profileId,
+			mentorRequested: mentorId,
+			mentorRequestStatus: 'pending'
+		});
+
+		if (!profile) {
+			return res.status(404).json({
+				success: false,
+				message: 'No pending request found for this profile'
+			});
+		}
+
+		if (action === 'approve') {
+			profile.mentor = mentorId;
+			profile.mentorRequestStatus = 'verified';
+		} else if (action === 'reject') {
+			profile.mentor = null;
+			profile.mentorRequestStatus = 'rejected';
+		}
+
+		profile.mentorReviewedAt = new Date();
+		profile.mentorReviewNote = note || '';
+
+		await profile.save();
+
+		return res.status(200).json({
+			success: true,
+			message: action === 'approve' ? 'Student request approved' : 'Student request rejected'
+		});
+	} catch (error) {
+		console.error('Error reviewing mentor request:', error);
+		return res.status(500).json({
+			success: false,
+			message: 'Failed to review mentor request',
 			error: error.message
 		});
 	}

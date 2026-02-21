@@ -1,12 +1,17 @@
-import axios from 'axios';
+import api from './api';
 
-// Create axios instance with base URL from environment variable
-const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
-  headers: {
-    'Content-Type': 'application/json'
-  }
-});
+const toAuthError = (error, fallbackMessage) => {
+  const message =
+    error?.data?.message ||
+    error?.data?.error ||
+    error?.message ||
+    fallbackMessage;
+
+  const authError = new Error(message);
+  authError.status = error?.status;
+  authError.data = error?.data;
+  return authError;
+};
 
 // Register new user
 export const registerUser = async (data) => {
@@ -14,7 +19,7 @@ export const registerUser = async (data) => {
     const response = await api.post('/auth/register', data);
     return response.data;
   } catch (error) {
-    throw error.response?.data || { message: 'Registration failed' };
+    throw toAuthError(error, 'Registration failed. Please check your connection and try again.');
   }
 };
 
@@ -31,7 +36,7 @@ export const loginUser = async (data) => {
     
     return response.data;
   } catch (error) {
-    throw error.response?.data || { message: 'Login failed' };
+    throw toAuthError(error, 'Login failed. Please check your credentials and try again.');
   }
 };
 

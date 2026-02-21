@@ -17,7 +17,7 @@ const MentorDashboard = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedJob, setSelectedJob] = useState(null);
-  const [selectedStudentId, setSelectedStudentId] = useState('');
+  const [selectedStudentIds, setSelectedStudentIds] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [toast, setToast] = useState(null);
   const [animatedJobId, setAnimatedJobId] = useState(null);
@@ -94,7 +94,7 @@ const MentorDashboard = () => {
 
   const openSuggestModal = (job) => {
     setSelectedJob(job);
-    setSelectedStudentId('');
+    setSelectedStudentIds([]);
     setModalOpen(true);
   };
 
@@ -102,12 +102,20 @@ const MentorDashboard = () => {
     if (submitting) return;
     setModalOpen(false);
     setSelectedJob(null);
-    setSelectedStudentId('');
+    setSelectedStudentIds([]);
+  };
+
+  const toggleStudentSelection = (studentId) => {
+    setSelectedStudentIds((prev) =>
+      prev.includes(studentId)
+        ? prev.filter((id) => id !== studentId)
+        : [...prev, studentId]
+    );
   };
 
   const handleConfirmSuggestion = async () => {
-    if (!selectedJob?._id || !selectedStudentId) {
-      showToast('error', 'Please choose a student before confirming.');
+    if (!selectedJob?._id || selectedStudentIds.length === 0) {
+      showToast('error', 'Please select at least one student.');
       return;
     }
 
@@ -115,7 +123,7 @@ const MentorDashboard = () => {
       setSubmitting(true);
       const response = await mentorService.suggestJob({
         jobId: selectedJob._id,
-        studentId: selectedStudentId
+        studentIds: selectedStudentIds
       });
 
       showToast('success', response.message || 'Suggestion sent successfully.');
@@ -158,6 +166,9 @@ const MentorDashboard = () => {
             value={searchTerm}
             onChange={(event) => setSearchTerm(event.target.value)}
           />
+          <button onClick={() => navigate('/mentor/approvals')} className="mentor-logout-btn">
+            Requests
+          </button>
           <button onClick={handleLogout} className="mentor-logout-btn">Logout</button>
         </div>
       </div>
@@ -249,8 +260,8 @@ const MentorDashboard = () => {
         isOpen={modalOpen}
         job={selectedJob}
         students={assignedStudents}
-        selectedStudentId={selectedStudentId}
-        onSelectStudent={setSelectedStudentId}
+        selectedStudentIds={selectedStudentIds}
+        onToggleStudent={toggleStudentSelection}
         onClose={closeSuggestModal}
         onConfirm={handleConfirmSuggestion}
         loading={submitting}
