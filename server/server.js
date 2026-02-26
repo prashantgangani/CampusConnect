@@ -12,6 +12,7 @@ import mentorRoutes from "./routes/mentorRoutes.js";
 import placementRoutes from "./routes/placementRoutes.js";
 import applicationRoutes from "./routes/applicationRoutes.js";
 import quizRoutes from "./routes/quizRoutes.js";
+import resumeRoutes from "./routes/resumeRoutes.js";
 
 const app = express();
 
@@ -32,6 +33,7 @@ app.use("/api/mentor", mentorRoutes);
 app.use("/api/placement", placementRoutes);
 app.use("/api/applications", applicationRoutes);
 app.use("/api/quiz", quizRoutes);
+app.use("/api/resume", resumeRoutes);
 
 // test route
 app.get("/api/test", (req, res) => {

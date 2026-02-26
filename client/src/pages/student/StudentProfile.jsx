@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import resumeService from '../../services/resumeService';
 import './StudentProfile.css';
 
 const StudentProfile = () => {
@@ -229,24 +230,18 @@ const StudentProfile = () => {
 
       const uploadResume = async () => {
         try {
-          const token = localStorage.getItem('token');
-          const formData = new FormData();
-          formData.append('resume', file);
-
-          const response = await axios.post('http://localhost:5000/api/student/profile/resume', formData, {
-            headers: {
-              Authorization: `Bearer ${token}`
-            }
+          const response = await resumeService.uploadResume(file);
+          setResumePreview({
+            fileName: file.name,
+            fileType: file.type,
+            url: response.url,
+            uploadedAt: new Date().toISOString()
           });
-
-          if (response.data.success) {
-            setResumePreview(response.data.data);
-            await fetchProfile();
-            setMessage({ text: 'Resume uploaded successfully', type: 'success' });
-          }
+          await fetchProfile();
+          setMessage({ text: response.message || 'Resume uploaded successfully', type: 'success' });
         } catch (error) {
           console.error('Error uploading resume:', error);
-          setMessage({ text: error.response?.data?.message || error.response?.data?.error || 'Failed to upload resume', type: 'error' });
+          setMessage({ text: error?.message || error.response?.data?.message || 'Failed to upload resume', type: 'error' });
         }
       };
 
@@ -296,9 +291,33 @@ const StudentProfile = () => {
     }
   };
 
-  const handleViewResume = () => {
+  const handleViewResume = async () => {
     if (!resumePreview?.url && !resumePreview?.fileData) return;
-    window.open(resumePreview.url || resumePreview.fileData, '_blank', 'noopener,noreferrer');
+
+    if (resumePreview?.fileData) {
+      window.open(resumePreview.fileData, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    const isPdf = (resumePreview?.fileType || '').toLowerCase().includes('pdf')
+      || (resumePreview?.fileName || '').toLowerCase().endsWith('.pdf');
+
+    if (!isPdf) {
+      window.open(resumePreview.url, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    try {
+      const response = await fetch(resumePreview.url);
+      const blob = await response.blob();
+      const pdfBlob = new Blob([blob], { type: 'application/pdf' });
+      const blobUrl = URL.createObjectURL(pdfBlob);
+      window.open(blobUrl, '_blank', 'noopener,noreferrer');
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+    } catch (error) {
+      console.error('Error opening PDF resume:', error);
+      window.open(resumePreview.url, '_blank', 'noopener,noreferrer');
+    }
   };
 
   const handleLogout = () => {

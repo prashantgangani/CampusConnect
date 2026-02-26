@@ -1,5 +1,14 @@
+import 'dotenv/config';
+import path from 'path';
 import { v2 as cloudinary } from 'cloudinary';
 import streamifier from 'streamifier';
+
+const requiredKeys = ['CLOUDINARY_CLOUD_NAME', 'CLOUDINARY_API_KEY', 'CLOUDINARY_API_SECRET'];
+const missingKeys = requiredKeys.filter((key) => !process.env[key]);
+
+if (missingKeys.length > 0) {
+  throw new Error(`Missing Cloudinary environment variables: ${missingKeys.join(', ')}`);
+}
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -7,15 +16,25 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
-export const uploadResumeToCloudinary = ({ buffer, userId }) =>
+const extensionFromMimeType = (mimeType = '') => {
+  if (mimeType === 'application/pdf') return '.pdf';
+  if (mimeType === 'application/msword') return '.doc';
+  if (mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') return '.docx';
+  return '';
+};
+
+export const uploadResumeToCloudinary = ({ buffer, userId, originalName = '', mimeType = '' }) =>
   new Promise((resolve, reject) => {
-    const publicId = `resume_${userId}_${Date.now()}`;
+    const extension = path.extname(originalName).toLowerCase() || extensionFromMimeType(mimeType);
+    const publicId = `resume_${userId}_${Date.now()}${extension}`;
 
     const uploadStream = cloudinary.uploader.upload_stream(
       {
         folder: 'resumes',
         resource_type: 'raw',
-        public_id: publicId
+        public_id: publicId,
+        use_filename: true,
+        unique_filename: true
       },
       (error, result) => {
         if (error) {
