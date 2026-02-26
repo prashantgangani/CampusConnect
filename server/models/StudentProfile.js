@@ -47,10 +47,12 @@ const studentProfileSchema = new mongoose.Schema({
     max: 100
   },
   
-  // Resume (stored as base64 string or GridFS reference)
+  // Resume (stored in Cloudinary)
   resume: {
     fileName: String,
-    fileData: String, // Base64 encoded file data
+    fileData: String,
+    url: String,
+    publicId: String,
     fileType: String,
     uploadedAt: Date
   },
@@ -153,7 +155,7 @@ studentProfileSchema.methods.calculateCompletion = function() {
   const fields = [
     this.fullName, this.email, this.phone, this.institution,
     this.department, this.cgpa, this.tenthMarks, this.twelfthMarks,
-    this.resume?.fileData, this.skills?.length > 0
+    this.resume?.url || this.resume?.fileData, this.skills?.length > 0
   ];
   
   fields.forEach(field => {

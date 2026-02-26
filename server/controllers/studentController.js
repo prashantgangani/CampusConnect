@@ -2,6 +2,7 @@ import StudentProfile from '../models/StudentProfile.js';
 import User from '../models/User.js';
 import SuggestedJob from '../models/SuggestedJob.js';
 import Application from '../models/Application.js';
+import { deleteResumeFromCloudinary, uploadResumeToCloudinary } from '../config/cloudinary.js';
 
 // Get student profile
 export const getStudentProfile = async (req, res) => {
@@ -119,6 +120,10 @@ export const deleteResume = async (req, res) => {
       });
     }
     
+    if (profile.resume?.publicId) {
+      await deleteResumeFromCloudinary(profile.resume.publicId);
+    }
+
     profile.resume = null;
     profile.calculateCompletion();
     await profile.save();
@@ -132,6 +137,90 @@ export const deleteResume = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error deleting resume',
+      error: error.message
+    });
+  }
+};
+
+export const uploadResume = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'Resume file is required'
+      });
+    }
+
+    const allowedTypes = [
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    ];
+    const allowedExtensions = ['.pdf', '.doc', '.docx'];
+    const originalName = (req.file.originalname || '').toLowerCase();
+    const hasAllowedExtension = allowedExtensions.some((extension) => originalName.endsWith(extension));
+    const hasAllowedMime = allowedTypes.includes(req.file.mimetype);
+
+    if (!hasAllowedMime && !hasAllowedExtension) {
+      return res.status(400).json({
+        success: false,
+        message: 'Only PDF, DOC, and DOCX files are allowed'
+      });
+    }
+
+    const maxFileSize = 2 * 1024 * 1024;
+    if (req.file.size > maxFileSize) {
+      return res.status(400).json({
+        success: false,
+        message: 'Resume must be 2MB or smaller'
+      });
+    }
+
+    let profile = await StudentProfile.findOne({ userId: req.user.id });
+    if (!profile) {
+      const user = await User.findById(req.user.id);
+      profile = new StudentProfile({
+        userId: req.user.id,
+        fullName: user?.name || req.user.name,
+        email: user?.email || req.user.email,
+        institution: user?.institution || req.user.institution || '',
+        skills: [],
+        links: {}
+      });
+    }
+
+    if (profile.resume?.publicId) {
+      await deleteResumeFromCloudinary(profile.resume.publicId);
+    }
+
+    const uploadResult = await uploadResumeToCloudinary({
+      buffer: req.file.buffer,
+      userId: req.user.id
+    });
+
+    profile.resume = {
+      fileName: req.file.originalname,
+      fileType: req.file.mimetype,
+      url: uploadResult.secure_url,
+      publicId: uploadResult.public_id,
+      uploadedAt: new Date()
+    };
+
+    profile.calculateCompletion();
+    await profile.save();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Resume uploaded successfully',
+      resumeUrl: uploadResult.secure_url,
+      resumePublicId: uploadResult.public_id,
+      data: profile.resume
+    });
+  } catch (error) {
+    console.error('Error uploading resume:', error);
+    return res.status(500).json({
+      success: false,
+      message: error?.message || 'Failed to upload resume',
       error: error.message
     });
   }

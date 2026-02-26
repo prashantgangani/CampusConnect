@@ -212,37 +212,45 @@ const StudentProfile = () => {
     if (file) {
       // Validate file type
       const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-      if (!allowedTypes.includes(file.type)) {
+      const allowedExtensions = ['.pdf', '.doc', '.docx'];
+      const lowerName = (file.name || '').toLowerCase();
+      const hasAllowedExtension = allowedExtensions.some((extension) => lowerName.endsWith(extension));
+      const hasAllowedType = allowedTypes.includes(file.type);
+      if (!hasAllowedType && !hasAllowedExtension) {
         setMessage({ text: 'Please upload PDF or Word document only', type: 'error' });
         return;
       }
       
-      // Validate file size (5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        setMessage({ text: 'File size should be less than 5MB', type: 'error' });
+      // Validate file size (2MB)
+      if (file.size > 2 * 1024 * 1024) {
+        setMessage({ text: 'File size should be less than 2MB', type: 'error' });
         return;
       }
-      
-      // Convert to base64
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const nextResume = {
-          fileName: file.name,
-          fileType: file.type,
-          fileData: reader.result,
-          uploadedAt: new Date().toISOString()
-        };
-        setResumePreview(nextResume);
 
+      const uploadResume = async () => {
         try {
-          await persistProfile({ resume: nextResume });
-          setMessage({ text: 'Resume uploaded successfully', type: 'success' });
+          const token = localStorage.getItem('token');
+          const formData = new FormData();
+          formData.append('resume', file);
+
+          const response = await axios.post('http://localhost:5000/api/student/profile/resume', formData, {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          });
+
+          if (response.data.success) {
+            setResumePreview(response.data.data);
+            await fetchProfile();
+            setMessage({ text: 'Resume uploaded successfully', type: 'success' });
+          }
         } catch (error) {
           console.error('Error uploading resume:', error);
-          setMessage({ text: 'Failed to upload resume', type: 'error' });
+          setMessage({ text: error.response?.data?.message || error.response?.data?.error || 'Failed to upload resume', type: 'error' });
         }
       };
-      reader.readAsDataURL(file);
+
+      uploadResume();
     }
   };
 
@@ -289,8 +297,8 @@ const StudentProfile = () => {
   };
 
   const handleViewResume = () => {
-    if (!resumePreview?.fileData) return;
-    window.open(resumePreview.fileData, '_blank', 'noopener,noreferrer');
+    if (!resumePreview?.url && !resumePreview?.fileData) return;
+    window.open(resumePreview.url || resumePreview.fileData, '_blank', 'noopener,noreferrer');
   };
 
   const handleLogout = () => {
@@ -564,7 +572,7 @@ const StudentProfile = () => {
                 <div className="resume-empty-box">
                   <div className="resume-upload-icon">⇪</div>
                   <p className="resume-empty-title">No resume uploaded yet</p>
-                  <p className="resume-empty-sub">PDF or DOC, max 5MB</p>
+                  <p className="resume-empty-sub">PDF or DOC, max 2MB</p>
                 </div>
               )}
 
