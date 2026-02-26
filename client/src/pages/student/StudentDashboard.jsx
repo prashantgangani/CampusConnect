@@ -534,7 +534,7 @@ const StudentDashboard = () => {
             <div className="stat-content">
               <div className="stat-number">{stats.applications}</div>
               <div className="stat-label">Applications</div>
-              <div className="stat-change">{stats.applicationsThisWeek} this week</div>
+              <div className="stat-change">+{stats.applicationsThisWeek} this week</div>
             </div>
           </div>
 
@@ -561,7 +561,7 @@ const StudentDashboard = () => {
             <div className="stat-content">
               <div className="stat-number">{stats.profileViews}</div>
               <div className="stat-label">Profile Views</div>
-              <div className="stat-change">{stats.profileViews} this week</div>
+              <div className="stat-change">+{stats.profileViews} this week</div>
             </div>
           </div>
         </div>
