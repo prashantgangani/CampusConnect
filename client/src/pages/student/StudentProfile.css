@@ -13,32 +13,36 @@
   align-items: center;
 }
 
-.brand {
+.logo-section {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
   font-weight: 800;
-  font-size: 28px;
+  font-size: 22px;
 }
 
-.brand-icon {
-  width: 42px;
-  height: 42px;
-  border-radius: 12px;
+.logo-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
   background: #1e40af;
   color: #fff;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 20px;
+  font-size: 18px;
 }
 
-.brand-campus {
-  color: #0f172a;
+.logo-campus {
+  color: #f8fbff;
 }
 
-.brand-connect {
+.logo-connect {
   color: #14b8a6;
+}
+
+.logo-text {
+  color: #f8fbff;
 }
 
 .topbar-actions {
@@ -153,8 +157,8 @@
 }
 
 .mentor-box.mentor-verified {
-  background: #ecfdf3;
-  border: 1px solid #86efac;
+  background: rgba(19, 41, 88, 0.78);
+  border: 1px solid rgba(148, 163, 184, 0.24);
 }
 
 .mentor-box.mentor-pending {
@@ -183,7 +187,7 @@
 
 .mentor-value-success {
   margin: 0;
-  color: #166534;
+  color: #e6edf8;
   font-size: 13px;
   font-weight: 600;
 }
@@ -333,6 +337,10 @@
   font-weight: 600;
 }
 
+.profile-progress-row span:last-child {
+  color: #ffffff;
+}
+
 .profile-progress-bar {
   width: 100%;
   height: 8px;
@@ -456,6 +464,48 @@
   justify-content: space-between;
   align-items: center;
   gap: 12px;
+}
+
+.upload-progress-wrap {
+  margin-bottom: 12px;
+}
+
+.upload-progress-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+  font-size: 13px;
+  color: #475569;
+  font-weight: 600;
+}
+
+.upload-progress-percent {
+  color: #f59e0b;
+}
+
+.upload-progress-percent.progress-good {
+  color: #22c55e;
+}
+
+.upload-progress-track {
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  overflow: hidden;
+}
+
+.upload-progress-fill {
+  height: 100%;
+  width: 0;
+  border-radius: 999px;
+  background: #f59e0b;
+  transition: width 0.2s ease;
+}
+
+.upload-progress-fill.progress-good {
+  background: #22c55e;
 }
 
 .resume-name {
@@ -700,11 +750,108 @@
   border-bottom: 1px solid rgba(148, 163, 184, 0.22) !important;
 }
 
-.brand-campus,
-.brand-connect,
-.brand,
+.profile-topbar .logo-section,
+.profile-topbar .logo-text,
 .page-title {
   color: #f8fbff;
+}
+
+.profile-topbar .logo-connect {
+  color: #14b8a6;
+}
+
+.profile-content-wrap,
+.summary-card,
+.form-section,
+.resume-empty-box,
+.mentor-box,
+.top-btn,
+.quick-skill-input,
+.form-group input,
+.skill-input,
+.mini-btn,
+.btn-cancel {
+  background: rgba(19, 41, 88, 0.72);
+  border-color: rgba(148, 163, 184, 0.24);
+  color: #e6edf8;
+}
+
+.quick-skill-input::placeholder,
+.form-group input::placeholder,
+.skill-input::placeholder,
+.mentor-email-input::placeholder {
+  color: #9eb0cf;
+}
+
+.top-btn:hover,
+.form-group input:focus,
+.skill-input:focus,
+.quick-skill-input:focus,
+.mini-btn:hover,
+.btn-cancel:hover,
+.mentor-email-input:focus {
+  background: rgba(30, 56, 112, 0.85);
+  border-color: rgba(96, 165, 250, 0.6);
+}
+
+.summary-card,
+.form-section,
+.resume-empty-box,
+.mentor-box,
+.profile-message,
+.mentor-dropdown,
+.mentor-dropdown-item,
+.resume-row {
+  background: rgba(14, 34, 76, 0.82);
+  border-color: rgba(148, 163, 184, 0.22);
+  box-shadow: 0 10px 28px rgba(1, 6, 18, 0.35);
+}
+
+.card-title,
+.section-title,
+.profile-name,
+.resume-name {
+  color: #f8fbff;
+}
+
+.profile-meta,
+.profile-meta.muted,
+.profile-email,
+.mentor-label,
+.empty-note,
+.resume-sub,
+.resume-empty-title,
+.resume-empty-sub,
+.form-group label,
+.profile-progress-row,
+.mentor-dropdown-email,
+.mentor-dropdown-institution {
+  color: #b9c7de;
+}
+
+.profile-progress-fill,
+.primary-btn,
+.quick-skill-btn,
+.btn-add-skill,
+.btn-save,
+.mentor-request-btn {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #ffffff;
+}
+
+.primary-btn:hover,
+.quick-skill-btn:hover,
+.btn-add-skill:hover,
+.btn-save:hover,
+.mentor-request-btn:hover {
+  background: #1d4ed8;
+}
+
+.skill-chip,
+.skill-tag {
+  background: rgba(20, 184, 166, 0.18);
+  color: #5eead4;
 }
 
 .top-btn,
@@ -795,4 +942,43 @@
   background: #ef4444 !important;
   border-color: #ef4444 !important;
   color: #ffffff !important;
+}
+
+/* ==================== EDIT PROFILE DARK MATCH ==================== */
+.profile-form .form-section {
+  background: #1e293b !important;
+  padding: 24px !important;
+  border-radius: 16px !important;
+  border: 1px solid #334155 !important;
+  box-shadow: 0 12px 30px rgba(2, 6, 23, 0.4) !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.profile-form .form-group input,
+.profile-form .skill-input {
+  background: rgba(148, 163, 184, 0.24) !important;
+  border: 1px solid #000000 !important;
+  color: #ffffff !important;
+}
+
+.profile-form .form-group input::placeholder,
+.profile-form .skill-input::placeholder {
+  color: #9eb0cf;
+}
+
+.profile-form,
+.profile-form .form-group label,
+.profile-form .form-group input,
+.profile-form .skill-input,
+.profile-form .skills-list,
+.profile-form .skill-tag,
+.profile-form .btn-add-skill,
+.profile-form .btn-remove-skill,
+.profile-form .btn-cancel,
+.profile-form .btn-save {
+  color: #ffffff !important;
+}
+
+.profile-form .section-title{
+  color: #b595ff !important;
 }

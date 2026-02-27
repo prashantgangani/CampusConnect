@@ -43,6 +43,8 @@ const StudentProfile = () => {
   
   const [newSkill, setNewSkill] = useState('');
   const [resumePreview, setResumePreview] = useState(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadingResume, setUploadingResume] = useState(false);
 
   useEffect(() => {
     fetchProfile();
@@ -230,18 +232,41 @@ const StudentProfile = () => {
 
       const uploadResume = async () => {
         try {
-          const response = await resumeService.uploadResume(file);
-          setResumePreview({
-            fileName: file.name,
-            fileType: file.type,
-            url: response.url,
-            uploadedAt: new Date().toISOString()
+          setUploadingResume(true);
+          setUploadProgress(0);
+
+          const response = await resumeService.uploadResume(file, (progressEvent) => {
+            const total = progressEvent?.total || 0;
+            const loaded = progressEvent?.loaded || 0;
+            const percentage = total > 0 ? Math.round((loaded * 100) / total) : 0;
+            setUploadProgress(Math.max(0, Math.min(100, percentage)));
           });
-          await fetchProfile();
+
+          setUploadProgress(100);
+          const uploadedResume =
+            response?.data?.resume
+            || response?.resume
+            || response?.data
+            || null;
+
+          setResumePreview({
+            fileName: uploadedResume?.fileName || file.name,
+            fileType: uploadedResume?.fileType || file.type,
+            url: uploadedResume?.url || response?.url || resumePreview?.url || '',
+            uploadedAt: uploadedResume?.uploadedAt || new Date().toISOString(),
+            fileData: uploadedResume?.fileData || null
+          });
+
+          fetchProfile();
           setMessage({ text: response.message || 'Resume uploaded successfully', type: 'success' });
         } catch (error) {
           console.error('Error uploading resume:', error);
           setMessage({ text: error?.message || error.response?.data?.message || 'Failed to upload resume', type: 'error' });
+        } finally {
+          setTimeout(() => {
+            setUploadingResume(false);
+            setUploadProgress(0);
+          }, 700);
         }
       };
 
@@ -456,9 +481,9 @@ const StudentProfile = () => {
   return (
     <div className="student-profile-container">
       <header className="profile-topbar">
-        <div className="brand">
-          <span className="brand-icon">🎓</span>
-          <span className="brand-campus">Campus</span><span className="brand-connect">Connect</span>
+        <div className="logo-section">
+          <span className="logo-icon">🎓</span>
+          <span className="logo-text"><span className="logo-campus">Campus</span><span className="logo-connect">Connect</span></span>
         </div>
         <div className="topbar-actions">
           <button className="top-btn" onClick={() => navigate('/student/dashboard')}>Dashboard</button>
@@ -576,6 +601,23 @@ const StudentProfile = () => {
 
             <div className="summary-card">
               <h3 className="card-title">📄 Resume / CV</h3>
+              {uploadingResume && (
+                <div className="upload-progress-wrap" role="status" aria-live="polite">
+                  <div className="upload-progress-head">
+                    <span>Uploading resume...</span>
+                    <span className={`upload-progress-percent ${uploadProgress >= 50 ? 'progress-good' : ''}`}>
+                      {uploadProgress}%
+                    </span>
+                  </div>
+                  <div className="upload-progress-track">
+                    <div
+                      className={`upload-progress-fill ${uploadProgress >= 50 ? 'progress-good' : ''}`}
+                      style={{ width: `${uploadProgress}%` }}
+                    ></div>
+                  </div>
+                </div>
+              )}
+
               {resumePreview ? (
                 <div className="resume-row">
                   <div>
@@ -595,7 +637,11 @@ const StudentProfile = () => {
                 </div>
               )}
 
-              <button className="primary-btn full" onClick={() => resumeInputRef.current?.click()}>
+              <button
+                className="primary-btn full"
+                onClick={() => resumeInputRef.current?.click()}
+                disabled={uploadingResume}
+              >
                 {resumePreview ? 'Replace Resume' : 'Upload Resume'}
               </button>
             </div>

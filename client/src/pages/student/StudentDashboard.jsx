@@ -46,6 +46,7 @@ const StudentDashboard = () => {
     title: '',
     text: ''
   });
+  const [searchQuery, setSearchQuery] = useState('');
 
   const getErrorMessage = (error, fallback) => {
     if (typeof error === 'string') return error;
@@ -447,6 +448,21 @@ const StudentDashboard = () => {
     return bgMap[statusType] || '#f3f4f6';
   };
 
+  const getScoreColor = (score) => {
+    const numericScore = Number(score);
+    if (Number.isNaN(numericScore)) return '#6b7280';
+    if (numericScore < 40) return '#EF4444';
+    if (numericScore < 70) return '#F59E0B';
+    return '#22C55E';
+  };
+
+  const getStatusBadgeClass = (statusType) => {
+    if (statusType === 'quiz_failed') return 'failed';
+    if (statusType === 'quiz_pending') return 'pending';
+    if (statusType === 'pending_mentor') return 'awaiting';
+    return '';
+  };
+
   const calculateMatchScore = (job) => {
     if (!studentProfile) return 0;
     
@@ -471,6 +487,27 @@ const StudentDashboard = () => {
 
   const remainingProfileCompletion = Math.max(0, 100 - (profileCompletion || 0));
 
+  const normalizedSearchQuery = searchQuery.trim().toLowerCase();
+
+  const matchesJobSearch = (job) => {
+    if (!normalizedSearchQuery) return true;
+
+    const searchableParts = [
+      job?.title,
+      job?.company?.name,
+      job?.jobType,
+      job?.location,
+      ...(Array.isArray(job?.skills) ? job.skills : [])
+    ]
+      .filter(Boolean)
+      .map((value) => String(value).toLowerCase());
+
+    return searchableParts.some((part) => part.includes(normalizedSearchQuery));
+  };
+
+  const filteredSuggestedJobs = suggestedJobs.filter((suggestion) => matchesJobSearch(suggestion?.job));
+  const filteredAvailableOpportunities = availableOpportunities.filter((job) => matchesJobSearch(job));
+
   if (loading) {
     return (
       <div className="student-dashboard">
@@ -478,7 +515,7 @@ const StudentDashboard = () => {
           <div className="header-left">
             <div className="logo-section">
               <span className="logo-icon">🎓</span>
-              <span className="logo-text">CampusConnect</span>
+              <span className="logo-text"><span className="logo-campus">Campus</span><span className="logo-connect">Connect</span></span>
             </div>
           </div>
           <div className="header-right">
@@ -499,11 +536,16 @@ const StudentDashboard = () => {
         <div className="header-left">
           <div className="logo-section">
             <span className="logo-icon">🎓</span>
-            <span className="logo-text">CampusConnect</span>
+            <span className="logo-text"><span className="logo-campus">Campus</span><span className="logo-connect">Connect</span></span>
           </div>
         </div>
         <div className="search-bar">
-          <input type="text" placeholder="Search jobs, companies..." />
+          <input
+            type="text"
+            placeholder="Search by company, job name, or domain..."
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+          />
         </div>
         <div className="header-right">
           <div className="notification-bell">🔔</div>
@@ -581,13 +623,13 @@ const StudentDashboard = () => {
               </h3>
             </div>
 
-            {suggestedJobs.length === 0 ? (
+            {filteredSuggestedJobs.length === 0 ? (
               <div className="empty-state">
                 <p>No job suggestions from your mentor yet.</p>
               </div>
             ) : (
               <div className="suggested-jobs-list">
-                {suggestedJobs.map((suggestion) => {
+                {filteredSuggestedJobs.map((suggestion) => {
                   const job = suggestion.job;
                   return (
                     <div key={suggestion._id} className="suggested-job-card">
@@ -648,7 +690,7 @@ const StudentDashboard = () => {
                       {app.statusType === 'quiz_pending' && (
                         <button
                           type="button"
-                          className="quiz-badge"
+                          className="quiz-badge take-quiz-btn"
                           disabled={quizLoading || quizSubmitting}
                           onClick={() => handleTakeQuiz(app.id)}
                         >
@@ -656,7 +698,9 @@ const StudentDashboard = () => {
                         </button>
                       )}
                       {app.quizScore !== undefined && app.quizScore !== null && (
-                        <span className="quiz-score">Score: {app.quizScore}%</span>
+                        <span className="quiz-score" style={{ color: getScoreColor(app.quizScore) }}>
+                          Score: {app.quizScore}%
+                        </span>
                       )}
                       {app.interviewDate && (
                         <span className="interview-date">
@@ -665,12 +709,16 @@ const StudentDashboard = () => {
                       )}
                     </div>
                     <div className="app-status">
-                      <span 
-                        className="status-badge" 
-                        style={{ 
-                          backgroundColor: getStatusBgColor(app.statusType),
-                          color: getStatusColor(app.statusType)
-                        }}
+                      <span
+                        className={`status-badge ${getStatusBadgeClass(app.statusType)}`}
+                        style={
+                          getStatusBadgeClass(app.statusType)
+                            ? undefined
+                            : {
+                                backgroundColor: getStatusBgColor(app.statusType),
+                                color: getStatusColor(app.statusType)
+                              }
+                        }
                       >
                         {app.status}
                       </span>
@@ -686,13 +734,13 @@ const StudentDashboard = () => {
           <div className="section-card">
             <h3>Available Opportunities</h3>
             
-            {availableOpportunities.length === 0 ? (
+            {filteredAvailableOpportunities.length === 0 ? (
               <div className="empty-state">
                 <p>No opportunities available</p>
               </div>
             ) : (
               <div className="opportunities-list">
-                {availableOpportunities.map((job) => {
+                {filteredAvailableOpportunities.map((job) => {
                   const matchScore = calculateMatchScore(job);
                   const suggestedMeta = suggestedJobMap[job._id];
                   const isSuggested = Boolean(suggestedMeta);
@@ -710,8 +758,8 @@ const StudentDashboard = () => {
                           <p className="company-name">{job.company?.name || 'Company'}</p>
                         </div>
                         <div className="match-score-badge" style={{ 
-                          backgroundColor: matchScore >= 80 ? '#d1fae5' : matchScore >= 60 ? '#fef3c7' : '#fee2e2',
-                          color: matchScore >= 80 ? '#059669' : matchScore >= 60 ? '#b45309' : '#dc2626'
+                          backgroundColor: matchScore >= 50 ? '#d1fae5' : '#fee2e2',
+                          color: matchScore >= 50 ? '#059669' : '#dc2626'
                         }}>
                           <span className="match-percent">{matchScore}%</span>
                           <span className="match-label">Match</span>
