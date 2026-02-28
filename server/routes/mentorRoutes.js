@@ -6,6 +6,11 @@ import {
 	getPendingMentorRequests,
 	reviewMentorRequest
 } from '../controllers/mentorController.js';
+import {
+  getMentorAwaitingApplications,
+  approveApplicationByMentor,
+  rejectApplicationByMentor
+} from '../controllers/applicationController.js';
 import { protect, authorize } from '../middlewares/authMiddleware.js';
 
 const router = express.Router();
@@ -18,5 +23,8 @@ router.post('/suggest', suggestJobToStudent);
 router.get('/suggestions/recent', getRecentSuggestions);
 router.get('/requests/pending', getPendingMentorRequests);
 router.post('/review-request', reviewMentorRequest);
+router.get('/applications/awaiting', getMentorAwaitingApplications);
+router.patch('/applications/:id/approve', approveApplicationByMentor);
+router.patch('/applications/:id/reject', rejectApplicationByMentor);
 
 export default router;

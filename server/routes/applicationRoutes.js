@@ -6,15 +6,24 @@ import {
   submitQuiz,
   getApplicationDetail,
   withdrawApplication,
-  getQuizResult
+  getQuizResult,
+  getMentorAwaitingApplications,
+  approveApplicationByMentor,
+  rejectApplicationByMentor
 } from '../controllers/applicationController.js';
-import { protect } from '../middlewares/authMiddleware.js';
-import { authorize } from '../middlewares/roleMiddleware.js';
+import { protect, authorize } from '../middlewares/authMiddleware.js';
 
 const router = express.Router();
 
-// All routes require authentication and student role
+// All routes require authentication
 router.use(protect);
+
+// Mentor approval routes
+router.get('/mentor/awaiting', authorize('mentor'), getMentorAwaitingApplications);
+router.patch('/:id/approve', authorize('mentor'), approveApplicationByMentor);
+router.patch('/:id/reject', authorize('mentor'), rejectApplicationByMentor);
+
+// Student routes require student role
 router.use(authorize('student'));
 
 // Get all applications for student

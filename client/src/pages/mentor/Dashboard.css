@@ -532,6 +532,32 @@
   font-size: 12px;
 }
 
+.mentor-request-meta-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.mentor-request-status-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 5px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  background: rgba(139, 92, 246, 0.18);
+  color: #c4b5fd;
+  border: 1px solid rgba(139, 92, 246, 0.45);
+}
+
+.mentor-request-score {
+  font-size: 12px;
+  font-weight: 600;
+  color: #93c5fd;
+}
+
 .mentor-request-date {
   color: #94a3b8;
 }

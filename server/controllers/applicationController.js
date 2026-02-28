@@ -521,3 +521,105 @@ export const getQuizResult = async (req, res) => {
     });
   }
 };
+
+// Get applications awaiting mentor approval
+export const getMentorAwaitingApplications = async (req, res) => {
+  try {
+    const applications = await Application.find({
+      status: { $in: ['pending_mentor', 'Awaiting Mentor Approval'] }
+    })
+      .populate('studentId', 'name')
+      .populate('jobId', 'title')
+      .sort({ updatedAt: -1 });
+
+    return res.status(200).json({
+      success: true,
+      count: applications.length,
+      data: applications
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: 'Error fetching mentor awaiting applications',
+      error: error.message
+    });
+  }
+};
+
+// Approve application by mentor
+export const approveApplicationByMentor = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const application = await Application.findById(id);
+    if (!application) {
+      return res.status(404).json({
+        success: false,
+        message: 'Application not found'
+      });
+    }
+
+    if (!['pending_mentor', 'Awaiting Mentor Approval'].includes(application.status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Only awaiting applications can be approved by mentor'
+      });
+    }
+
+    application.status = 'mentor_approved';
+    application.mentorId = req.user._id;
+    application.mentorApprovedAt = new Date();
+    await application.save();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Approved by Mentor',
+      data: application
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: 'Error approving application',
+      error: error.message
+    });
+  }
+};
+
+// Reject application by mentor
+export const rejectApplicationByMentor = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const application = await Application.findById(id);
+    if (!application) {
+      return res.status(404).json({
+        success: false,
+        message: 'Application not found'
+      });
+    }
+
+    if (!['pending_mentor', 'Awaiting Mentor Approval'].includes(application.status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Only awaiting applications can be rejected by mentor'
+      });
+    }
+
+    application.status = 'mentor_rejected';
+    application.mentorId = req.user._id;
+    application.mentorApprovedAt = null;
+    await application.save();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Rejected by Mentor',
+      data: application
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: 'Error rejecting application',
+      error: error.message
+    });
+  }
+};

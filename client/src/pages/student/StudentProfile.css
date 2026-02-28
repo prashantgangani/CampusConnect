@@ -982,3 +982,41 @@
 .profile-form .section-title{
   color: #b595ff !important;
 }
+
+.profile-name,
+.summary-right-column .card-title {
+  color: #4F8CFF !important;
+  text-shadow: 0 0 10px rgba(79, 140, 255, 0.4);
+}
+
+/* ==================== FINAL PROFILE TUNING ==================== */
+.mentor-box.mentor-rejected .mentor-label,
+.mentor-box.mentor-rejected .mentor-value-error {
+  color: #000000 !important;
+}
+
+.mentor-box.mentor-pending .mentor-label,
+.mentor-box.mentor-pending .mentor-value-warning {
+  color: #000000 !important;
+}
+
+.resume-empty-title,
+.resume-empty-sub {
+  color: #000000 !important;
+}
+
+.mentor-dropdown-name,
+.mentor-dropdown-email,
+.mentor-dropdown-institution {
+  color: #ffffff !important;
+}
+
+.profile-name {
+  font-size: 3rem !important;
+  line-height: 1.1;
+}
+
+.summary-right-column .card-title {
+  font-size: 2.3rem !important;
+  line-height: 1.15;
+}
