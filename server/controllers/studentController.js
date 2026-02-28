@@ -247,7 +247,7 @@ export const getSuggestedJobs = async (req, res) => {
         path: 'job',
         populate: {
           path: 'company',
-          select: 'name email'
+          select: 'name email institution'
         }
       })
       .sort({ createdAt: -1 });

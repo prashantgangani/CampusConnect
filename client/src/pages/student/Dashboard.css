@@ -573,7 +573,7 @@
 
 .suggested-mentor-name {
   font-size: 12px;
-  color: #854d0e;
+  color: #ffffff;
   font-weight: 600;
 }
 
@@ -586,7 +586,7 @@
   flex-wrap: wrap;
   gap: 14px;
   margin-top: 10px;
-  color: #78350f;
+  color: #ffffff;
   font-size: 13px;
 }
 
@@ -1397,4 +1397,16 @@
 .student-dashboard .logout-btn,
 .student-dashboard .notification-bell {
   color: #e6edf8 !important;
+}
+
+.student-dashboard .logout-btn {
+  background: #ef4444 !important;
+  border-color: #ef4444 !important;
+  color: #ffffff !important;
+}
+
+.student-dashboard .logout-btn:hover {
+  background: #dc2626 !important;
+  border-color: #dc2626 !important;
+  color: #ffffff !important;
 }

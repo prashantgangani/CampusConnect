@@ -19,6 +19,13 @@ const JobCard = ({
   animate
 }) => {
   const deadlinePassed = job?.applicationDeadline && new Date(job.applicationDeadline) < new Date();
+  const companyDisplayName =
+    job?.companyName
+    || job?.company?.institution
+    || job?.company?.companyName
+    || job?.postedBy?.institution
+    || job?.postedBy?.companyName
+    || 'Company';
 
   return (
     <div
@@ -27,13 +34,14 @@ const JobCard = ({
       } ${animate ? 'mentor-card-animate' : ''}`}
     >
       <div className="mentor-job-card-top">
-        <span className="mentor-company-name">{job.company?.name || 'Company'}</span>
+        <span className="mentor-company-name">{companyDisplayName}</span>
         <span className={getStatusClass(job.status)}>{job.status || 'pending'}</span>
       </div>
 
       <h3 className="mentor-job-title">{job.title}</h3>
 
       <div className="mentor-job-meta">
+        <p><strong>Job Type:</strong> {job.jobType || 'Not specified'}</p>
         <p><strong>Location:</strong> {job.location || 'Not specified'}</p>
         <p><strong>Deadline:</strong> {formatDate(job.applicationDeadline)}</p>
       </div>

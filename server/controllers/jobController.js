@@ -14,6 +14,7 @@ export const createJob = async (req, res) => {
       description,
       requirements,
       company,
+      companyName: req.user?.institution || '',
       location,
       salary,
       jobType,
@@ -53,7 +54,7 @@ export const getAllJobs = async (req, res) => {
         };
 
     const jobs = await Job.find(query)
-      .populate('company', 'name email')
+      .populate('company', 'name email institution')
       .sort({ createdAt: -1 });
 
     res.status(200).json({
@@ -96,7 +97,7 @@ export const getJobById = async (req, res) => {
   try {
     const { id } = req.params;
     const job = await Job.findById(id)
-      .populate('company', 'name email');
+      .populate('company', 'name email institution');
 
     if (!job) {
       return res.status(404).json({
@@ -214,7 +215,7 @@ export const getPendingJobs = async (req, res) => {
     console.log('Database stats:', { totalJobs, pendingJobs, approvedJobs, rejectedJobs });
 
     const jobs = await Job.find({ approvalStatus: 'pending' })
-      .populate('company', 'name email')
+      .populate('company', 'name email institution')
       .sort({ createdAt: -1 });
 
     console.log('Found', jobs.length, 'pending jobs');

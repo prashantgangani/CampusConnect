@@ -71,6 +71,14 @@
   font-size: 18px;
 }
 
+.logo-campus {
+  color: #f8fafc;
+}
+
+.logo-connect {
+  color: #14b8a6;
+}
+
 .placement-nav-search-wrap {
   display: flex;
   justify-content: center;
@@ -106,6 +114,17 @@
 
 .dashboard-container .logout-btn {
   background: #111827;
+}
+
+.placement-nav-right .logout-btn {
+  background: #ef4444;
+  border-color: #ef4444;
+  color: #ffffff;
+}
+
+.placement-nav-right .logout-btn:hover {
+  background: #dc2626;
+  border-color: #dc2626;
 }
 
 .placement-dashboard-content {

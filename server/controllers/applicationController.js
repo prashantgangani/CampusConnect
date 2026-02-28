@@ -21,8 +21,8 @@ export const getStudentApplications = async (req, res) => {
     const studentId = req.user._id;
     
     const applications = await Application.find({ studentId })
-      .populate('jobId', 'title description salary location jobType company')
-      .populate('jobId.company', 'name')
+      .populate('jobId', 'title description salary location jobType company companyName')
+      .populate('jobId.company', 'name institution')
       .sort({ createdAt: -1 });
 
     const uniqueByJob = [];

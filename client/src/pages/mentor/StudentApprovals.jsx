@@ -113,14 +113,17 @@ const StudentApprovals = () => {
       <div className="mentor-dashboard-header">
         <div className="mentor-logo-wrap">
           <span className="mentor-logo-icon">🎓</span>
-          <span className="mentor-logo-text">CampusConnect</span>
+          <span className="mentor-logo-text">
+            <span className="mentor-logo-campus">Campus</span>
+            <span className="mentor-logo-connect">Connect</span>
+          </span>
         </div>
 
         <div className="mentor-nav-actions">
           <button className="mentor-logout-btn" onClick={() => navigate('/mentor/dashboard')}>
             Dashboard
           </button>
-          <button onClick={handleLogout} className="mentor-logout-btn">
+          <button onClick={handleLogout} className="mentor-logout-btn mentor-logout-danger">
             Logout
           </button>
         </div>

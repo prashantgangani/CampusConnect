@@ -9,9 +9,11 @@ import './Dashboard.css';
 const MentorDashboard = () => {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const suggestionsStorageKey = `mentor_total_suggestions_${user?._id || user?.email || 'default'}`;
   const [jobs, setJobs] = useState([]);
   const [students, setStudents] = useState([]);
   const [recentSuggestions, setRecentSuggestions] = useState([]);
+  const [totalSuggestions, setTotalSuggestions] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
@@ -27,15 +29,39 @@ const MentorDashboard = () => {
       setLoading(true);
       setError('');
 
-      const [jobsResponse, studentsResponse, suggestionsResponse] = await Promise.all([
+      const [jobsResult, studentsResult, suggestionsResult, suggestionsTotalResult] = await Promise.allSettled([
         jobService.getAllJobs(),
         mentorService.getStudents(),
-        mentorService.getRecentSuggestions()
+        mentorService.getRecentSuggestions(),
+        mentorService.getSuggestionsTotal()
       ]);
+
+      if (jobsResult.status !== 'fulfilled' || studentsResult.status !== 'fulfilled' || suggestionsResult.status !== 'fulfilled') {
+        throw new Error('Unable to load mentor dashboard right now.');
+      }
+
+      const jobsResponse = jobsResult.value;
+      const studentsResponse = studentsResult.value;
+      const suggestionsResponse = suggestionsResult.value;
+      const suggestionsTotalResponse = suggestionsTotalResult.status === 'fulfilled'
+        ? suggestionsTotalResult.value
+        : null;
+      const persistedTotal = Number(localStorage.getItem(suggestionsStorageKey) || 0);
+      const fetchedTotal = Number(
+        suggestionsTotalResponse?.totalSuggestions
+          ?? suggestionsResponse.totalSuggestions
+          ?? (suggestionsResponse.suggestions || []).length
+      );
+      const resolvedTotal = Math.max(
+        Number.isFinite(persistedTotal) ? persistedTotal : 0,
+        Number.isFinite(fetchedTotal) ? fetchedTotal : 0
+      );
 
       setJobs(jobsResponse.jobs || []);
       setStudents(studentsResponse.students || []);
       setRecentSuggestions(suggestionsResponse.suggestions || []);
+      setTotalSuggestions(resolvedTotal);
+      localStorage.setItem(suggestionsStorageKey, String(resolvedTotal));
     } catch (error) {
       setError(error?.message || 'Unable to load mentor dashboard right now.');
     } finally {
@@ -55,7 +81,7 @@ const MentorDashboard = () => {
 
   const stats = useMemo(() => {
     const activeJobs = jobs.filter((job) => job.status === 'active').length;
-    const suggestionCount = recentSuggestions.length;
+    const suggestionCount = totalSuggestions;
 
     return {
       jobs: jobs.length,
@@ -63,7 +89,7 @@ const MentorDashboard = () => {
       students: students.length,
       suggestions: suggestionCount
     };
-  }, [jobs, students, recentSuggestions]);
+  }, [jobs, students, totalSuggestions]);
 
   const recentSuggestedJobIds = useMemo(
     () => new Set(recentSuggestions.map((suggestion) => suggestion?.job?._id).filter(Boolean)),
@@ -127,6 +153,13 @@ const MentorDashboard = () => {
       });
 
       showToast('success', response.message || 'Suggestion sent successfully.');
+      setTotalSuggestions((prev) => {
+        const createdCount = Number(response?.createdCount || 0);
+        const responseTotal = Number(response?.totalSuggestions || 0);
+        const updatedTotal = Math.max(prev + createdCount, responseTotal, prev);
+        localStorage.setItem(suggestionsStorageKey, String(updatedTotal));
+        return updatedTotal;
+      });
       setAnimatedJobId(selectedJob._id);
       await loadDashboardData();
       closeSuggestModal();
@@ -155,7 +188,10 @@ const MentorDashboard = () => {
       <div className="mentor-dashboard-header">
         <div className="mentor-logo-wrap">
           <span className="mentor-logo-icon">🎓</span>
-          <span className="mentor-logo-text">CampusConnect</span>
+          <span className="mentor-logo-text">
+            <span className="mentor-logo-campus">Campus</span>
+            <span className="mentor-logo-connect">Connect</span>
+          </span>
         </div>
 
         <div className="mentor-nav-actions">
@@ -169,7 +205,7 @@ const MentorDashboard = () => {
           <button onClick={() => navigate('/mentor/approvals')} className="mentor-logout-btn">
             Requests
           </button>
-          <button onClick={handleLogout} className="mentor-logout-btn">Logout</button>
+          <button onClick={handleLogout} className="mentor-logout-btn mentor-logout-danger">Logout</button>
         </div>
       </div>
 

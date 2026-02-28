@@ -3,6 +3,7 @@ import {
 	getStudentsForMentor,
 	suggestJobToStudent,
 	getRecentSuggestions,
+	getSuggestionsTotal,
 	getPendingMentorRequests,
 	reviewMentorRequest
 } from '../controllers/mentorController.js';
@@ -21,6 +22,7 @@ router.use(authorize('mentor'));
 router.get('/students', getStudentsForMentor);
 router.post('/suggest', suggestJobToStudent);
 router.get('/suggestions/recent', getRecentSuggestions);
+router.get('/suggestions/total', getSuggestionsTotal);
 router.get('/requests/pending', getPendingMentorRequests);
 router.post('/review-request', reviewMentorRequest);
 router.get('/applications/awaiting', getMentorAwaitingApplications);

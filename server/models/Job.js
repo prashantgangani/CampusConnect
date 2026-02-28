@@ -21,6 +21,11 @@ const jobSchema = new mongoose.Schema({
     ref: 'User',
     required: [true, 'Company is required']
   },
+  companyName: {
+    type: String,
+    trim: true,
+    default: ''
+  },
   location: {
     type: String,
     required: [true, 'Location is required'],

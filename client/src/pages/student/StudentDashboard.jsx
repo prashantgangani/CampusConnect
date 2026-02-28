@@ -57,6 +57,14 @@ const StudentDashboard = () => {
     return fallback;
   };
 
+  const getCompanyDisplayName = (job) => (
+    job?.companyName
+    || job?.company?.institution
+    || job?.company?.companyName
+    || job?.company?.name
+    || 'Company'
+  );
+
   const fetchDashboardData = useCallback(async (showLoader = true) => {
     try {
       if (showLoader) setLoading(true);
@@ -98,7 +106,7 @@ const StudentDashboard = () => {
           id: app._id,
           jobId: app.jobId?._id,
           jobTitle: app.jobId?.title || 'Unknown Job',
-          company: app.jobId?.company?.name || app.jobId?.companyName || 'Company',
+          company: getCompanyDisplayName(app.jobId),
           status: formatApplicationStatus(app.status),
           statusType: app.status,
           quizScore: app.quizScore,
@@ -142,6 +150,28 @@ const StudentDashboard = () => {
       const jobs = jobsResponse.jobs || [];
       const suggestionsResponse = await api.get('/student/suggestions');
       const suggestions = suggestionsResponse?.data?.suggestions || [];
+
+      const jobCompanyById = new Map();
+      jobs.forEach((job) => {
+        if (!job?._id) return;
+        jobCompanyById.set(String(job._id), getCompanyDisplayName(job));
+      });
+      suggestions.forEach((suggestion) => {
+        const suggestionJob = suggestion?.job;
+        if (!suggestionJob?._id) return;
+        jobCompanyById.set(String(suggestionJob._id), getCompanyDisplayName(suggestionJob));
+      });
+
+      setRecentApplications((prev) =>
+        prev.map((application) => ({
+          ...application,
+          company:
+            jobCompanyById.get(String(application.jobId))
+            || application.company
+            || 'Company'
+        }))
+      );
+
       const normalizedSuggestions = suggestions.filter((suggestion) => {
         const suggestionJobId = suggestion?.job?._id;
         if (!suggestionJobId) return false;
@@ -494,7 +524,7 @@ const StudentDashboard = () => {
 
     const searchableParts = [
       job?.title,
-      job?.company?.name,
+      getCompanyDisplayName(job),
       job?.jobType,
       job?.location,
       ...(Array.isArray(job?.skills) ? job.skills : [])
@@ -639,7 +669,7 @@ const StudentDashboard = () => {
                       </div>
 
                       <h4>{job?.title || 'Job Opportunity'}</h4>
-                      <p className="company-name">{job?.company?.name || 'Company'}</p>
+                      <p className="company-name">{getCompanyDisplayName(job)}</p>
 
                       <div className="suggested-job-meta">
                         <span>📍 {job?.location || 'Location not specified'}</span>
@@ -755,7 +785,7 @@ const StudentDashboard = () => {
                       <div className="opp-header">
                         <div>
                           <h4>{job.title}</h4>
-                          <p className="company-name">{job.company?.name || 'Company'}</p>
+                          <p className="company-name">{getCompanyDisplayName(job)}</p>
                         </div>
                         <div className="match-score-badge" style={{ 
                           backgroundColor: matchScore >= 50 ? '#d1fae5' : '#fee2e2',

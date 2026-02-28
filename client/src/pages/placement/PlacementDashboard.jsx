@@ -124,7 +124,10 @@ const PlacementDashboard = () => {
         <div className="placement-navbar bg-[#0f172a]">
           <div className="logo-wrap">
             <span className="logo-icon">🎓</span>
-            <span className="logo-text font-bold text-white">CampusConnect</span>
+            <span className="logo-text font-bold text-white">
+              <span className="logo-campus">Campus</span>
+              <span className="logo-connect">Connect</span>
+            </span>
           </div>
 
           <div className="placement-nav-search-wrap">

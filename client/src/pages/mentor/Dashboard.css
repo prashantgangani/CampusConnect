@@ -40,6 +40,14 @@
   color: #f8fafc;
 }
 
+.mentor-logo-campus {
+  color: #f8fafc;
+}
+
+.mentor-logo-connect {
+  color: #14b8a6;
+}
+
 .mentor-nav-actions {
   display: flex;
   align-items: center;
@@ -73,6 +81,17 @@
 
 .mentor-logout-btn:hover {
   background: #1f2937;
+}
+
+.mentor-logout-btn.mentor-logout-danger {
+  background: #ef4444;
+  border-color: #ef4444;
+  color: #ffffff;
+}
+
+.mentor-logout-btn.mentor-logout-danger:hover {
+  background: #dc2626;
+  border-color: #dc2626;
 }
 
 .mentor-welcome-section {

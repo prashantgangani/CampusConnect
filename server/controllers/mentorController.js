@@ -116,6 +116,7 @@ export const suggestJobToStudent = async (req, res) => {
 		const writeResult = await SuggestedJob.bulkWrite(operations, { ordered: false });
 		const createdCount = writeResult.upsertedCount || 0;
 		const duplicateCount = uniqueStudentIds.length - createdCount;
+		const totalSuggestions = await SuggestedJob.countDocuments({ mentor: mentorId });
 
 		return res.status(201).json({
 			success: true,
@@ -124,7 +125,8 @@ export const suggestJobToStudent = async (req, res) => {
 				: 'This job was already suggested to the selected student(s)',
 			createdCount,
 			duplicateCount,
-			totalTargets: uniqueStudentIds.length
+			totalTargets: uniqueStudentIds.length,
+			totalSuggestions
 		});
 	} catch (error) {
 		console.error('Error suggesting job to student:', error);
@@ -138,7 +140,8 @@ export const suggestJobToStudent = async (req, res) => {
 
 export const getRecentSuggestions = async (req, res) => {
 	try {
-		const suggestions = await SuggestedJob.find({ mentor: req.user._id })
+		const [suggestions, totalSuggestions] = await Promise.all([
+			SuggestedJob.find({ mentor: req.user._id })
 			.populate('student', 'name email')
 			.populate({
 				path: 'job',
@@ -148,17 +151,38 @@ export const getRecentSuggestions = async (req, res) => {
 				}
 			})
 			.sort({ createdAt: -1 })
-			.limit(10);
+			.limit(10),
+			SuggestedJob.countDocuments({ mentor: req.user._id })
+		]);
 
 		res.status(200).json({
 			success: true,
-			suggestions
+			suggestions,
+			totalSuggestions
 		});
 	} catch (error) {
 		console.error('Error fetching recent mentor suggestions:', error);
 		res.status(500).json({
 			success: false,
 			message: 'Failed to fetch recent suggestions',
+			error: error.message
+		});
+	}
+};
+
+export const getSuggestionsTotal = async (req, res) => {
+	try {
+		const totalSuggestions = await SuggestedJob.countDocuments({ mentor: req.user._id });
+
+		return res.status(200).json({
+			success: true,
+			totalSuggestions
+		});
+	} catch (error) {
+		console.error('Error fetching mentor suggestion total:', error);
+		return res.status(500).json({
+			success: false,
+			message: 'Failed to fetch total suggestions',
 			error: error.message
 		});
 	}

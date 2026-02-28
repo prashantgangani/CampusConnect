@@ -24,6 +24,11 @@ const mentorService = {
     return response.data;
   },
 
+  getSuggestionsTotal: async () => {
+    const response = await api.get('/mentor/suggestions/total');
+    return response.data;
+  },
+
   getAwaitingApprovals: async () => {
     const response = await api.get('/mentor/applications/awaiting');
     return response.data;
