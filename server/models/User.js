@@ -28,6 +28,14 @@ const userSchema = new mongoose.Schema({
   institution: {
     type: String,
     trim: true
+  },
+  department: {
+    type: String,
+    trim: true
+  },
+  college: {
+    type: String,
+    trim: true
   }
 }, {
   timestamps: true

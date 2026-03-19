@@ -14,16 +14,6 @@ const VerifyCompanies = () => {
   const [reviewNotes, setReviewNotes] = useState({});
   const [actionLoading, setActionLoading] = useState({});
 
-  // Debug: Check user role on mount
-  useEffect(() => {
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-    const token = localStorage.getItem('token');
-    console.log('VerifyCompanies Debug:', {
-      userRole: user.role,
-      hasToken: !!token,
-      user: user
-    });
-  }, []);
 
   const fetchPendingJobs = useCallback(async () => {
     try {
@@ -190,21 +180,10 @@ const VerifyCompanies = () => {
         </div>
       )}
 
-      <div className="mt-6 rounded-xl border border-blue-500/30 bg-slate-900 p-4 text-slate-200 shadow-lg">
-        <div className="text-sm font-bold">🔐 Debug Info</div>
-        <div className="mt-2 text-sm">
-          <span className="font-semibold">Current Role:</span>{' '}
-          {JSON.parse(localStorage.getItem('user') || '{}').role || 'Not set'}
-        </div>
-        <div className="text-sm">
-          <span className="font-semibold">Token Present:</span>{' '}
-          {localStorage.getItem('token') ? '✅ Yes' : '❌ No'}
-        </div>
-      </div>
 
       <div className="jobs-summary mt-6">
         <div className="summary-card bg-slate-800 rounded-2xl shadow-lg p-8 text-center transition hover:-translate-y-1">
-          <h3 className="text-5xl font-bold text-amber-400">{jobs.length}</h3>
+          <h3 className="text-5xl font-bold text-sky-300">{jobs.length}</h3>
           <p className="mt-2 text-slate-300 font-medium">Pending Approvals</p>
         </div>
       </div>

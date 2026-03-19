@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import placementService from '../../services/placementService';
+import PlacementProfileModal from '../../components/placement/PlacementProfileModal';
 import StatCard from '../../components/placement/StatCard';
 import ActionCard from '../../components/placement/ActionCard';
 import './Dashboard.css';
@@ -22,6 +23,10 @@ const PlacementDashboard = () => {
   const [recentCompanies, setRecentCompanies] = useState([]);
   const [companySearch, setCompanySearch] = useState('');
   const [approvingCompanyId, setApprovingCompanyId] = useState('');
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const [profile, setProfile] = useState(null);
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileSaving, setProfileSaving] = useState(false);
 
   const loadPlacementData = useCallback(async () => {
     try {
@@ -57,6 +62,37 @@ const PlacementDashboard = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     navigate('/login');
+  };
+
+  const openProfileModal = async () => {
+    try {
+      setProfileLoading(true);
+      const response = await placementService.getProfile();
+      setProfile(response.profile);
+      setProfileModalOpen(true);
+    } catch (error) {
+      setToast({ type: 'error', text: error?.message || 'Failed to load profile.' });
+    } finally {
+      setProfileLoading(false);
+    }
+  };
+
+  const closeProfileModal = () => {
+    setProfileModalOpen(false);
+  };
+
+  const handleSaveProfile = async (updatedProfile) => {
+    try {
+      setProfileSaving(true);
+      const response = await placementService.updateProfile(updatedProfile);
+      setProfile(response.profile);
+      setToast({ type: 'success', text: 'Profile updated successfully.' });
+      setProfileModalOpen(false);
+    } catch (error) {
+      setToast({ type: 'error', text: error?.message || 'Failed to save profile.' });
+    } finally {
+      setProfileSaving(false);
+    }
   };
 
   const handleVerifyCompanies = () => {
@@ -112,7 +148,7 @@ const PlacementDashboard = () => {
   };
 
   return (
-    <div className="placement-dashboard-shell bg-gradient-to-br from-[#0f172a] via-[#0b1120] to-[#020617] text-white">
+    <div className="placement-dashboard-shell text-white">
       <aside className="placement-sidebar">
         <h3 className="text-white font-bold">Placement Panel</h3>
         <button type="button" className="sidebar-item active text-white font-semibold">Overview</button>
@@ -140,7 +176,14 @@ const PlacementDashboard = () => {
 
           <div className="placement-nav-right">
             <span className="notification">🔔</span>
-            <button type="button" className="profile-btn text-slate-100 font-semibold">{user.name || 'Placement'}</button>
+            <button
+              type="button"
+              onClick={openProfileModal}
+              className="profile-btn text-slate-100 font-semibold"
+              disabled={profileLoading}
+            >
+              {profileLoading ? 'Loading…' : user.name || 'Placement'}
+            </button>
             <button onClick={handleLogout} className="logout-btn text-slate-100 font-semibold">Logout</button>
           </div>
         </div>
@@ -156,6 +199,14 @@ const PlacementDashboard = () => {
               {toast.text}
             </div>
           )}
+
+          <PlacementProfileModal
+            isOpen={profileModalOpen}
+            onClose={closeProfileModal}
+            profile={profile}
+            onSave={handleSaveProfile}
+            saving={profileSaving}
+          />
 
           {error && (
             <div className="placement-error bg-red-950/70 border border-red-500 text-red-100 font-semibold">

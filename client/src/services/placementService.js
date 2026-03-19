@@ -19,6 +19,16 @@ const placementService = {
   approveCompany: async (companyId) => {
     const response = await api.put(`/placement/companies/${companyId}/approve`);
     return response.data;
+  },
+
+  getProfile: async () => {
+    const response = await api.get('/placement/profile');
+    return response.data;
+  },
+
+  updateProfile: async (profileData) => {
+    const response = await api.put('/placement/profile', profileData);
+    return response.data;
   }
 };
 

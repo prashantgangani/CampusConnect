@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import jobService from '../../services/jobService';
 import applicationService from '../../services/applicationService';
 import api from '../../services/api';
+import SecureQuiz from '../../components/student/SecureQuiz';
 import './Dashboard.css';
 
 const StudentDashboard = () => {
@@ -27,13 +28,10 @@ const StudentDashboard = () => {
   const [missingProfileItems, setMissingProfileItems] = useState([]);
   const [studentProfile, setStudentProfile] = useState(null);
   const [uiMessage, setUiMessage] = useState(null);
-  const [quizModalOpen, setQuizModalOpen] = useState(false);
-  const [quizLoading, setQuizLoading] = useState(false);
-  const [quizSubmitting, setQuizSubmitting] = useState(false);
-  const [quizApplicationId, setQuizApplicationId] = useState(null);
-  const [quizQuestions, setQuizQuestions] = useState([]);
-  const [quizAnswers, setQuizAnswers] = useState({});
-  const [quizCurrentIndex, setQuizCurrentIndex] = useState(0);
+  const [secureQuizOpen, setSecureQuizOpen] = useState(false);
+  const [secureQuizLoading, setSecureQuizLoading] = useState(false);
+  const [secureQuizApplicationId, setSecureQuizApplicationId] = useState(null);
+  const [secureQuizQuestions, setSecureQuizQuestions] = useState([]);
   const [quizResultModal, setQuizResultModal] = useState({
     open: false,
     passed: false,
@@ -296,15 +294,15 @@ const StudentDashboard = () => {
       }
 
       setUiMessage(null);
-      setQuizLoading(true);
-      setQuizModalOpen(true);
-      setQuizApplicationId(applicationId);
+      setSecureQuizLoading(true);
+      setSecureQuizOpen(true);
+      setSecureQuizApplicationId(applicationId);
 
       const quizStartResponse = await applicationService.startQuiz(applicationId);
       const questions = quizStartResponse.questions || [];
 
       if (!questions.length) {
-        setQuizModalOpen(false);
+        setSecureQuizOpen(false);
         setUiMessage({
           type: 'error',
           text: 'Quiz questions are not available right now. Please try again in a moment.'
@@ -312,80 +310,40 @@ const StudentDashboard = () => {
         return;
       }
 
-      setQuizQuestions(questions);
-      setQuizAnswers({});
-      setQuizCurrentIndex(0);
+      setSecureQuizQuestions(questions);
     } catch (error) {
       console.error('Error taking quiz:', error);
-      setQuizModalOpen(false);
+      setSecureQuizOpen(false);
       setUiMessage({
         type: 'error',
         text: getErrorMessage(error, 'Unable to start quiz right now. Please try again.')
       });
     } finally {
-      setQuizLoading(false);
+      setSecureQuizLoading(false);
     }
   };
 
-  const handleSelectQuizAnswer = (questionId, option) => {
-    setQuizAnswers((prev) => ({
-      ...prev,
-      [questionId]: option
-    }));
+  const handleSecureQuizClose = () => {
+    setSecureQuizOpen(false);
+    setSecureQuizLoading(false);
+    setSecureQuizQuestions([]);
+    setSecureQuizApplicationId(null);
   };
 
-  const handleCloseQuizModal = () => {
-    if (quizSubmitting) return;
-    setQuizModalOpen(false);
-    setQuizLoading(false);
-    setQuizSubmitting(false);
-    setQuizQuestions([]);
-    setQuizAnswers({});
-    setQuizCurrentIndex(0);
-    setQuizApplicationId(null);
-  };
+  const handleSecureQuizSubmitSuccess = (result) => {
+    const resultText = result.passed
+      ? `Quiz completed successfully! You scored ${result.percentage}%. Your application is sent to mentor for verification.`
+      : `Quiz completed. You scored ${result.percentage}%. You did not reach the passing score.`;
 
-  const handleSubmitQuiz = async () => {
-    if (!quizQuestions.length || !quizApplicationId) return;
+    setQuizResultModal({
+      open: true,
+      passed: !!result.passed,
+      percentage: result.percentage || 0,
+      text: resultText,
+      applicationId: secureQuizApplicationId
+    });
 
-    const unanswered = quizQuestions.filter((question) => !quizAnswers[question._id]);
-    if (unanswered.length > 0) {
-      setUiMessage({
-        type: 'error',
-        text: `Please answer all questions before submitting. ${unanswered.length} question(s) remaining.`
-      });
-      return;
-    }
-
-    try {
-      setQuizSubmitting(true);
-      const answersPayload = quizQuestions.map((question) => ({
-        questionId: question._id,
-        selectedAnswer: quizAnswers[question._id]
-      }));
-
-      const submitResponse = await applicationService.submitApplicationQuiz(quizApplicationId, answersPayload);
-      const resultText = submitResponse.passed
-        ? `Quiz completed successfully! You scored ${submitResponse.percentage}%. Your application is sent to mentor for verification.`
-        : `Quiz completed. You scored ${submitResponse.percentage}%. You did not reach the passing score.`;
-
-      handleCloseQuizModal();
-      setQuizResultModal({
-        open: true,
-        passed: !!submitResponse.passed,
-        percentage: submitResponse.percentage || 0,
-        text: resultText,
-        applicationId: quizApplicationId
-      });
-    } catch (error) {
-      console.error('Error submitting quiz:', error);
-      setUiMessage({
-        type: 'error',
-        text: getErrorMessage(error, 'Unable to submit quiz right now. Please try again.')
-      });
-    } finally {
-      setQuizSubmitting(false);
-    }
+    fetchDashboardData(false);
   };
 
   const handleQuizResultOk = () => {
@@ -721,7 +679,7 @@ const StudentDashboard = () => {
                         <button
                           type="button"
                           className="quiz-badge take-quiz-btn"
-                          disabled={quizLoading || quizSubmitting}
+                          disabled={secureQuizLoading}
                           onClick={() => handleTakeQuiz(app.id)}
                         >
                           Take Quiz →
@@ -886,85 +844,15 @@ const StudentDashboard = () => {
         </div>
       </div>
 
-      {quizModalOpen && (
-        <div className="quiz-modal-overlay">
-          <div className="quiz-modal">
-            <div className="quiz-modal-header">
-              <h3>Job Screening Quiz</h3>
-              <button type="button" className="quiz-close" onClick={handleCloseQuizModal} disabled={quizSubmitting}>
-                ×
-              </button>
-            </div>
-
-            {quizLoading ? (
-              <div className="quiz-loading">Loading quiz questions...</div>
-            ) : (
-              <>
-                <div className="quiz-progress">
-                  <span>Question {quizCurrentIndex + 1} of {quizQuestions.length}</span>
-                  <span>{Object.keys(quizAnswers).length}/{quizQuestions.length} answered</span>
-                </div>
-
-                {quizQuestions[quizCurrentIndex] && (
-                  <div className="quiz-question-block">
-                    <p className="quiz-question-text">{quizQuestions[quizCurrentIndex].question}</p>
-                    <div className="quiz-options">
-                      {quizQuestions[quizCurrentIndex].options.map((option, optionIndex) => {
-                        const questionId = quizQuestions[quizCurrentIndex]._id;
-                        const isSelected = quizAnswers[questionId] === option;
-
-                        return (
-                          <button
-                            key={`${questionId}-${optionIndex}`}
-                            type="button"
-                            className={`quiz-option ${isSelected ? 'quiz-option-selected' : ''}`}
-                            onClick={() => handleSelectQuizAnswer(questionId, option)}
-                            disabled={quizSubmitting}
-                          >
-                            <span className="quiz-option-label">{String.fromCharCode(65 + optionIndex)}</span>
-                            <span>{option}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                <div className="quiz-actions">
-                  <button
-                    type="button"
-                    className="quiz-nav-btn"
-                    onClick={() => setQuizCurrentIndex((prev) => Math.max(prev - 1, 0))}
-                    disabled={quizCurrentIndex === 0 || quizSubmitting}
-                  >
-                    Previous
-                  </button>
-
-                  {quizCurrentIndex < quizQuestions.length - 1 ? (
-                    <button
-                      type="button"
-                      className="quiz-nav-btn quiz-nav-primary"
-                      onClick={() => setQuizCurrentIndex((prev) => Math.min(prev + 1, quizQuestions.length - 1))}
-                      disabled={quizSubmitting}
-                    >
-                      Next
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      className="quiz-nav-btn quiz-submit-btn"
-                      onClick={handleSubmitQuiz}
-                      disabled={quizSubmitting}
-                    >
-                      {quizSubmitting ? 'Submitting...' : 'Submit Quiz'}
-                    </button>
-                  )}
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
+      {/* Secure Fullscreen Quiz Component */}
+      <SecureQuiz
+        isOpen={secureQuizOpen}
+        applicationId={secureQuizApplicationId}
+        questions={secureQuizQuestions}
+        loading={secureQuizLoading}
+        onClose={handleSecureQuizClose}
+        onSubmitSuccess={handleSecureQuizSubmitSuccess}
+      />
 
       {quizResultModal.open && (
         <div className="quiz-result-overlay">

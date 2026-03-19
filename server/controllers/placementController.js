@@ -158,3 +158,52 @@ export const approveCompany = async (req, res) => {
 		});
 	}
 };
+
+export const getPlacementProfile = async (req, res) => {
+	try {
+		const user = await User.findById(req.user._id).select('name email role institution department college');
+		if (!user) {
+			return res.status(404).json({ success: false, message: 'User not found' });
+		}
+
+		res.status(200).json({ success: true, profile: user });
+	} catch (error) {
+		console.error('Error fetching placement profile:', error);
+		res.status(500).json({
+			success: false,
+			message: 'Failed to fetch placement profile',
+			error: error.message
+		});
+	}
+};
+
+export const updatePlacementProfile = async (req, res) => {
+	try {
+		const updates = {};
+		const allowedFields = ['name', 'institution', 'department', 'college'];
+		allowedFields.forEach((field) => {
+			if (req.body[field] !== undefined) {
+				updates[field] = req.body[field];
+			}
+		});
+
+		const user = await User.findByIdAndUpdate(req.user._id, updates, {
+			new: true,
+			runValidators: true,
+			select: 'name email role institution department college'
+		});
+
+		if (!user) {
+			return res.status(404).json({ success: false, message: 'User not found' });
+		}
+
+		res.status(200).json({ success: true, profile: user });
+	} catch (error) {
+		console.error('Error updating placement profile:', error);
+		res.status(500).json({
+			success: false,
+			message: 'Failed to update placement profile',
+			error: error.message
+		});
+	}
+};
