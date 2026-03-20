@@ -306,6 +306,7 @@ const SecureQuiz = ({
     console.log('✅ Anti-cheat system initialized - All listeners active');
 
     return () => {
+      console.log('🔒 Cleaning up quiz - removing listeners and resetting refs');
       // Cleanup event listeners
       document.removeEventListener('keydown', handleKeyDown, { capture: true });
       document.removeEventListener('contextmenu', handleContextMenu, { capture: true });
@@ -314,7 +315,10 @@ const SecureQuiz = ({
       window.removeEventListener('blur', handleWindowBlur);
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
 
+      // CRITICAL: Reset all refs so next quiz initializes properly
       listenersAddedRef.current = false;
+      autoSubmitInProgressRef.current = false;
+      lastViolationTimeRef.current = {};
 
       // Exit fullscreen on cleanup
       if (isFullscreenCurrently()) {
@@ -365,8 +369,7 @@ const SecureQuiz = ({
 
   const handleSubmitQuiz = async () => {
     if (!questions.length || !applicationId) return;
-
-    setIsSubmitted(true);
+    if (submitting) return; // Prevent multiple submissions
 
     try {
       setSubmitting(true);
