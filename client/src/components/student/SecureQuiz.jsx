@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import applicationService from '../../services/applicationService';
 import './SecureQuiz.css';
 
@@ -10,15 +11,18 @@ const SecureQuiz = ({
   onSubmitSuccess,
   loading = false
 }) => {
+  const navigate = useNavigate();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState({});
   const [submitting, setSubmitting] = useState(false);
-  const [warningCount, setWarningCount] = useState(0);
+  const [violationCount, setViolationCount] = useState(0);
   const [isFullscreenActive, setIsFullscreenActive] = useState(false);
   const [showWarningModal, setShowWarningModal] = useState(false);
+  const [warningMessage, setWarningMessage] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
   const fullscreenRef = useRef(null);
   const listenersAddedRef = useRef(false);
+  const escPressHandledRef = useRef(false);
 
   // Helper function to check if fullscreen is currently active
   const isFullscreenCurrently = useCallback(() => {
@@ -34,6 +38,32 @@ const SecureQuiz = ({
   const handleKeyDown = useCallback((e) => {
     const isMacLike = /(Mac|iPhone|iPod|iPad)/i.test(navigator.platform);
     const ctrlKey = isMacLike ? e.metaKey : e.ctrlKey;
+
+    // Handle ESC key with violation system
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      setViolationCount((prev) => {
+        const newCount = prev + 1;
+        
+        if (newCount < 3) {
+          // First or second violation: Show warning
+          setWarningMessage(
+            `⚠️ ESC Press Warning (${newCount}/2)\n\nYou have ${3 - newCount} more attempt(s) before your quiz is auto-submitted.`
+          );
+          setShowWarningModal(true);
+        } else if (newCount === 3) {
+          // Third violation: Mark for auto-submit
+          console.log('ESC: Violation count reached 3, triggering auto-submit');
+          setIsSubmitted(true);
+          setShowWarningModal(false);
+        }
+        
+        return newCount;
+      });
+      return;
+    }
 
     // Block dangerous keyboard shortcuts
     const blockedCombos = [
@@ -78,51 +108,103 @@ const SecureQuiz = ({
 
   // Anti-cheat: Detect tab/app switch
   const handleVisibilityChange = useCallback(() => {
-    if (document.hidden && isFullscreenActive && !isSubmitted) {
-      handleAutoSubmit();
+    if (document.hidden && isFullscreenActive) {
+      console.log('Tab hidden - violation triggered');
+      setViolationCount((prev) => {
+        const newCount = prev + 1;
+        
+        if (newCount < 3) {
+          // First or second violation: Show warning
+          setWarningMessage(
+            `⚠️ Tab Switch Warning (${newCount}/2)\n\nYou tried to switch tabs. You have ${3 - newCount} more attempt(s) before auto-submit.`
+          );
+          setShowWarningModal(true);
+        } else if (newCount === 3) {
+          // Third violation: Mark for auto-submit
+          console.log('Tab switch: Violation count reached 3, triggering auto-submit');
+          setIsSubmitted(true);
+          setShowWarningModal(false);
+        }
+        
+        return newCount;
+      });
     }
-  }, [isFullscreenActive, isSubmitted]);
+  }, [isFullscreenActive]);
 
   // Anti-cheat: Detect window blur (Alt+Tab)
   const handleWindowBlur = useCallback(() => {
-    if (isFullscreenActive && !isSubmitted) {
-      handleAutoSubmit();
+    // Only trigger if fullscreen and not already switching tabs
+    if (isFullscreenActive && !document.hidden) {
+      console.log('Window blurred (Alt+Tab) - violation triggered');
+      setViolationCount((prev) => {
+        const newCount = prev + 1;
+        
+        if (newCount < 3) {
+          // First or second violation: Show warning
+          setWarningMessage(
+            `⚠️ Alt+Tab Warning (${newCount}/2)\n\nYou tried to switch windows. You have ${3 - newCount} more attempt(s) before auto-submit.`
+          );
+          setShowWarningModal(true);
+        } else if (newCount === 3) {
+          // Third violation: Mark for auto-submit
+          console.log('Alt+Tab: Violation count reached 3, triggering auto-submit');
+          setIsSubmitted(true);
+          setShowWarningModal(false);
+        }
+        
+        return newCount;
+      });
     }
-  }, [isFullscreenActive, isSubmitted]);
+  }, [isFullscreenActive]);
 
   // Anti-cheat: Detect fullscreen exit
   const handleFullscreenChange = useCallback(() => {
     const nowFullscreen = isFullscreenCurrently();
     setIsFullscreenActive(nowFullscreen);
 
-    if (!nowFullscreen && !isSubmitted) {
-      if (warningCount === 0) {
-        // First exit: show warning
-        setWarningCount(1);
-        setShowWarningModal(true);
-      } else {
-        // Second exit: auto-submit
-        handleAutoSubmit();
-      }
+    if (!nowFullscreen) {
+      console.log('Fullscreen exited - violation triggered');
+      setViolationCount((prev) => {
+        const newCount = prev + 1;
+        
+        if (newCount < 3) {
+          // First or second violation: Show warning
+          setWarningMessage(
+            `⚠️ Fullscreen Exit Warning (${newCount}/2)\n\nYou exited fullscreen mode. You have ${3 - newCount} more attempt(s) before auto-submit.`
+          );
+          setShowWarningModal(true);
+        } else if (newCount === 3) {
+          // Third violation: Mark for auto-submit
+          console.log('Fullscreen exit: Violation count reached 3, triggering auto-submit');
+          setIsSubmitted(true);
+          setShowWarningModal(false);
+        }
+        
+        return newCount;
+      });
     }
-  }, [isFullscreenCurrently, isSubmitted, warningCount]);
+  }, [isFullscreenCurrently]);
 
-  // Auto-submit quiz
+  // Auto-submit quiz (with partial answers allowed)
   const handleAutoSubmit = useCallback(async () => {
+    console.log('handleAutoSubmit called, isSubmitted:', isSubmitted, 'applicationId:', applicationId);
+    
     if (isSubmitted || !applicationId) return;
-
-    setIsSubmitted(true);
 
     try {
       setSubmitting(true);
 
-      // Submit with answered questions only
+      // Submit with answered questions only (partial submission allowed 0-10 answers)
       const answersPayload = questions
         .filter((q) => answers[q._id])
         .map((question) => ({
           questionId: question._id,
           selectedAnswer: answers[question._id]
         }));
+
+      console.log('📤 Auto-submitting - applicationId:', applicationId);
+      console.log('📤 Auto-submit payload:', JSON.stringify(answersPayload));
+      console.log('📤 Total questions:', questions.length, 'answered:', answersPayload.length);
 
       const submitResponse = await applicationService.submitApplicationQuiz(
         applicationId,
@@ -147,23 +229,32 @@ const SecureQuiz = ({
           passed: submitResponse.passed,
           percentage: submitResponse.percentage,
           text: submitResponse.passed
-            ? `Quiz submitted! You scored ${submitResponse.percentage}%. Your application is sent to mentor for verification.`
-            : `Quiz submitted. You scored ${submitResponse.percentage}%. You did not reach the passing score.`
+            ? `Quiz auto-submitted! You scored ${submitResponse.percentage}%. Your application is sent to mentor for verification.`
+            : `Quiz auto-submitted. You scored ${submitResponse.percentage}%. You did not reach the passing score.`
         });
       }
 
-      // Close quiz component
+      // Close quiz component after brief delay, then navigate to home
       if (onClose) {
         setTimeout(() => {
           onClose();
-        }, 500);
+          // Navigate to student dashboard
+          navigate('/student/dashboard', { replace: true });
+        }, 800);
+      } else {
+        // If no onClose handler, just navigate to dashboard
+        setTimeout(() => {
+          navigate('/student/dashboard', { replace: true });
+        }, 800);
       }
     } catch (error) {
-      console.error('Error auto-submitting quiz:', error);
-      setIsSubmitted(false);
+      console.error('❌ Error auto-submitting quiz:', error);
+      const errorMsg = error?.message || (typeof error === 'string' ? error : 'Failed to submit quiz');
+      console.error('Error details:', JSON.stringify(error));
+      // Don't show alert on auto-submit - just log
       setSubmitting(false);
     }
-  }, [applicationId, questions, answers, isSubmitted, onSubmitSuccess, onClose, isFullscreenCurrently]);
+  }, [applicationId, questions, answers, isFullscreenCurrently, onSubmitSuccess, onClose, navigate, isSubmitted]);
 
   // Enter fullscreen on quiz start
   const enterFullscreen = useCallback(async () => {
@@ -191,7 +282,7 @@ const SecureQuiz = ({
     listenersAddedRef.current = true;
     setCurrentIndex(0);
     setAnswers({});
-    setWarningCount(0);
+    setViolationCount(0);
     setIsSubmitted(false);
     setShowWarningModal(false);
 
@@ -239,6 +330,22 @@ const SecureQuiz = ({
     isFullscreenCurrently
   ]);
 
+  // Auto-submit when isSubmitted flag is set to true
+  useEffect(() => {
+    if (isSubmitted && !submitting) {
+      console.log('isSubmitted is true, calling handleAutoSubmit');
+      handleAutoSubmit();
+    }
+  }, [isSubmitted, submitting, handleAutoSubmit]);
+
+  // Auto-submit when violation count reaches 3
+  useEffect(() => {
+    if (violationCount === 3 && !isSubmitted) {
+      console.log('Violation count reached 3, setting isSubmitted to true');
+      setIsSubmitted(true);
+    }
+  }, [violationCount, isSubmitted]);
+
   const handleSelectAnswer = (questionId, option) => {
     if (!submitting) {
       setAnswers((prev) => ({
@@ -251,17 +358,12 @@ const SecureQuiz = ({
   const handleSubmitQuiz = async () => {
     if (!questions.length || !applicationId) return;
 
-    const unanswered = questions.filter((q) => !answers[q._id]);
-    if (unanswered.length > 0) {
-      alert(`Please answer all questions before submitting. ${unanswered.length} question(s) remaining.`);
-      return;
-    }
-
     setIsSubmitted(true);
 
     try {
       setSubmitting(true);
 
+      // Allow partial submission - submit whatever answers exist (0-10)
       const answersPayload = questions
         .filter((q) => answers[q._id])
         .map((question) => ({
@@ -269,10 +371,16 @@ const SecureQuiz = ({
           selectedAnswer: answers[question._id]
         }));
 
+      console.log('📤 Manual submit - applicationId:', applicationId);
+      console.log('📤 Total questions:', questions.length, 'answered:', answersPayload.length);
+      console.log('📤 Sending payload:', JSON.stringify(answersPayload));
+
       const submitResponse = await applicationService.submitApplicationQuiz(
         applicationId,
         answersPayload
       );
+
+      console.log('✅ Submit response:', submitResponse);
 
       // Exit fullscreen safely
       if (isFullscreenCurrently()) {
@@ -296,11 +404,20 @@ const SecureQuiz = ({
       if (onClose) {
         setTimeout(() => {
           onClose();
+          // Navigate to student dashboard
+          navigate('/student/dashboard', { replace: true });
+        }, 500);
+      } else {
+        setTimeout(() => {
+          navigate('/student/dashboard', { replace: true });
         }, 500);
       }
     } catch (error) {
-      console.error('Error submitting quiz:', error);
-      alert('Error submitting quiz. Please try again.');
+      console.error('❌ Error submitting quiz:', error);
+      const errorMsg = error?.message || error?.msg || (typeof error === 'string' ? error : 'Failed to submit quiz');
+      const fullError = typeof error === 'object' ? JSON.stringify(error) : error;
+      console.error('Full error details:', fullError);
+      alert(`Error: ${errorMsg}\n\nPlease try again or refresh the page.`);
       setIsSubmitted(false);
     } finally {
       setSubmitting(false);
@@ -309,8 +426,10 @@ const SecureQuiz = ({
 
   const handleWarningOk = () => {
     setShowWarningModal(false);
-    // Try to re-enter fullscreen
-    enterFullscreen();
+    // Try to re-enter fullscreen if exited
+    if (!isFullscreenActive) {
+      enterFullscreen();
+    }
   };
 
   if (!isOpen || !questions.length) return null;
@@ -325,12 +444,9 @@ const SecureQuiz = ({
           <div className="secure-quiz-warning-overlay">
             <div className="secure-quiz-warning-modal">
               <div className="secure-quiz-warning-icon">⚠️</div>
-              <h3>Fullscreen Mode Required</h3>
-              <p>
-                If you exit fullscreen or switch tabs again, your quiz will be submitted immediately with your current answers.
-              </p>
-              <p>
-                This is for maintaining quiz integrity. Please continue in fullscreen mode.
+              <h3>Anti-Cheat Warning</h3>
+              <p style={{ whiteSpace: 'pre-line' }}>
+                {warningMessage}
               </p>
               <button
                 type="button"

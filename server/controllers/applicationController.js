@@ -256,12 +256,8 @@ export const submitQuiz = async (req, res) => {
         });
       }
 
-      if (answers.length !== requiredAnswerCount) {
-        return res.status(400).json({
-          success: false,
-          message: `Please submit exactly ${requiredAnswerCount} answers.`
-        });
-      }
+      // Allow partial submissions - student can answer any number of questions (0-10)
+      // No minimum requirement - can submit with 0, 1, 2, ... up to 10 answers
 
       const questions = await Question.find({ _id: { $in: questionIds } }).lean();
       if (questions.length !== requiredAnswerCount) {
@@ -273,36 +269,45 @@ export const submitQuiz = async (req, res) => {
 
       const correctMap = new Map(questions.map((question) => [String(question._id), question.correctAnswer]));
 
+      // totalMarks should be based on total questions, not submitted answers
       totalMarks = requiredAnswerCount;
 
-      resultAnswers = answers.map((answer) => {
-        if (!answer || !answer.questionId) {
+      // Handle both empty and non-empty answers arrays
+      if (Array.isArray(answers) && answers.length > 0) {
+        resultAnswers = answers.map((answer) => {
+          if (!answer || !answer.questionId) {
+            return {
+              questionId: null,
+              selectedAnswer: null,
+              isCorrect: false,
+              marksObtained: 0
+            };
+          }
+
+          const questionId = String(answer.questionId);
+          const selectedAnswer = typeof answer.selectedAnswer === 'string'
+            ? answer.selectedAnswer.trim()
+            : answer.selectedAnswer;
+          const correctAnswer = correctMap.get(questionId);
+          const isCorrect = correctAnswer === selectedAnswer;
+          if (isCorrect) {
+            marksObtained += 1;
+          }
+
           return {
-            questionId: null,
-            selectedAnswer: null,
-            isCorrect: false,
-            marksObtained: 0
+            questionId: answer.questionId,
+            selectedAnswer,
+            isCorrect,
+            marksObtained: isCorrect ? 1 : 0
           };
-        }
+        });
+      } else {
+        // Empty submission - no answers provided (0 answers)
+        resultAnswers = [];
+        marksObtained = 0;
+      }
 
-        const questionId = String(answer.questionId);
-        const selectedAnswer = typeof answer.selectedAnswer === 'string'
-          ? answer.selectedAnswer.trim()
-          : answer.selectedAnswer;
-        const correctAnswer = correctMap.get(questionId);
-        const isCorrect = correctAnswer === selectedAnswer;
-        if (isCorrect) {
-          marksObtained += 1;
-        }
-
-        return {
-          questionId: answer.questionId,
-          selectedAnswer,
-          isCorrect,
-          marksObtained: isCorrect ? 1 : 0
-        };
-      });
-
+      // Calculate percentage based on total questions (not submitted answers)
       percentage = totalMarks > 0 ? Math.round((marksObtained / totalMarks) * 100) : 0;
       passed = percentage >= 70;
     } else if (Array.isArray(answers) && answers.length > 0 && answers.every((answer) => answer?.questionId)) {
