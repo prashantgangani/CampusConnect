@@ -22,7 +22,50 @@ const SecureQuiz = ({
   const [isSubmitted, setIsSubmitted] = useState(false);
   const fullscreenRef = useRef(null);
   const listenersAddedRef = useRef(false);
-  const escPressHandledRef = useRef(false);
+  const lastViolationTimeRef = useRef({});
+  const autoSubmitInProgressRef = useRef(false);
+  const DEBOUNCE_TIME = 500; // Prevent multiple violations within 500ms
+
+  // Helper function to check if event should be debounced
+  const shouldProcessViolation = useCallback((violationType) => {
+    const now = Date.now();
+    const lastTime = lastViolationTimeRef.current[violationType] || 0;
+    
+    if (now - lastTime < DEBOUNCE_TIME) {
+      console.log(`⏸️ Debounced: ${violationType} (${DEBOUNCE_TIME}ms)`);
+      return false;
+    }
+    
+    lastViolationTimeRef.current[violationType] = now;
+    return true;
+  }, []);
+
+  // Helper function to trigger warning or auto-submit
+  const triggerViolation = useCallback((violationType, violationMessage) => {
+    if (!shouldProcessViolation(violationType)) {
+      return;
+    }
+
+    setViolationCount((prev) => {
+      const newCount = prev + 1;
+      console.log(`🚨 ${violationType}: Violation ${newCount}`);
+      
+      if (newCount < 3) {
+        // First or second violation: Show warning
+        setWarningMessage(
+          `⚠️ ${violationMessage}\\n\\nWarning ${newCount}/2\\n\\nYou have ${3 - newCount} more attempt(s) remaining.`
+        );
+        setShowWarningModal(true);
+      } else if (newCount === 3) {
+        // Third violation: Auto-submit immediately
+        console.log(`🚫 ${violationType}: Third violation reached - AUTO-SUBMITTING`);
+        setShowWarningModal(false);
+        setIsSubmitted(true);
+      }
+      
+      return newCount;
+    });
+  }, [shouldProcessViolation]);
 
   // Helper function to check if fullscreen is currently active
   const isFullscreenCurrently = useCallback(() => {
@@ -39,29 +82,12 @@ const SecureQuiz = ({
     const isMacLike = /(Mac|iPhone|iPod|iPad)/i.test(navigator.platform);
     const ctrlKey = isMacLike ? e.metaKey : e.ctrlKey;
 
-    // Handle ESC key with violation system
+    // Handle ESC key
     if (e.key === 'Escape') {
       e.preventDefault();
       e.stopPropagation();
-      
-      setViolationCount((prev) => {
-        const newCount = prev + 1;
-        
-        if (newCount < 3) {
-          // First or second violation: Show warning
-          setWarningMessage(
-            `⚠️ ESC Press Warning (${newCount}/2)\n\nYou have ${3 - newCount} more attempt(s) before your quiz is auto-submitted.`
-          );
-          setShowWarningModal(true);
-        } else if (newCount === 3) {
-          // Third violation: Mark for auto-submit
-          console.log('ESC: Violation count reached 3, triggering auto-submit');
-          setIsSubmitted(true);
-          setShowWarningModal(false);
-        }
-        
-        return newCount;
-      });
+      console.log('🔴 ESC key pressed');
+      triggerViolation('ESC_PRESS', 'ESC Key Pressed');
       return;
     }
 
@@ -91,7 +117,7 @@ const SecureQuiz = ({
       e.preventDefault();
       e.stopPropagation();
     }
-  }, []);
+  }, [triggerViolation]);
 
   // Anti-cheat: Disable right-click context menu
   const handleContextMenu = useCallback((e) => {
@@ -108,54 +134,19 @@ const SecureQuiz = ({
 
   // Anti-cheat: Detect tab/app switch
   const handleVisibilityChange = useCallback(() => {
-    if (document.hidden && isFullscreenActive) {
-      console.log('Tab hidden - violation triggered');
-      setViolationCount((prev) => {
-        const newCount = prev + 1;
-        
-        if (newCount < 3) {
-          // First or second violation: Show warning
-          setWarningMessage(
-            `⚠️ Tab Switch Warning (${newCount}/2)\n\nYou tried to switch tabs. You have ${3 - newCount} more attempt(s) before auto-submit.`
-          );
-          setShowWarningModal(true);
-        } else if (newCount === 3) {
-          // Third violation: Mark for auto-submit
-          console.log('Tab switch: Violation count reached 3, triggering auto-submit');
-          setIsSubmitted(true);
-          setShowWarningModal(false);
-        }
-        
-        return newCount;
-      });
+    if (document.hidden) {
+      console.log('🔴 Tab visibility change detected');
+      triggerViolation('TAB_SWITCH', 'Tab Switch Detected - You switched away from quiz');
+    } else {
+      console.log('✅ Tab visibility restored');
     }
-  }, [isFullscreenActive]);
+  }, [triggerViolation]);
 
-  // Anti-cheat: Detect window blur (Alt+Tab)
+  // Anti-cheat: Detect window blur (Alt+Tab or app switch)
   const handleWindowBlur = useCallback(() => {
-    // Only trigger if fullscreen and not already switching tabs
-    if (isFullscreenActive && !document.hidden) {
-      console.log('Window blurred (Alt+Tab) - violation triggered');
-      setViolationCount((prev) => {
-        const newCount = prev + 1;
-        
-        if (newCount < 3) {
-          // First or second violation: Show warning
-          setWarningMessage(
-            `⚠️ Alt+Tab Warning (${newCount}/2)\n\nYou tried to switch windows. You have ${3 - newCount} more attempt(s) before auto-submit.`
-          );
-          setShowWarningModal(true);
-        } else if (newCount === 3) {
-          // Third violation: Mark for auto-submit
-          console.log('Alt+Tab: Violation count reached 3, triggering auto-submit');
-          setIsSubmitted(true);
-          setShowWarningModal(false);
-        }
-        
-        return newCount;
-      });
-    }
-  }, [isFullscreenActive]);
+    console.log('🔴 Window blur detected (Alt+Tab or app switch)');
+    triggerViolation('WINDOW_BLUR', 'Window Minimum Event - You switched windows');
+  }, [triggerViolation]);
 
   // Anti-cheat: Detect fullscreen exit
   const handleFullscreenChange = useCallback(() => {
@@ -163,33 +154,22 @@ const SecureQuiz = ({
     setIsFullscreenActive(nowFullscreen);
 
     if (!nowFullscreen) {
-      console.log('Fullscreen exited - violation triggered');
-      setViolationCount((prev) => {
-        const newCount = prev + 1;
-        
-        if (newCount < 3) {
-          // First or second violation: Show warning
-          setWarningMessage(
-            `⚠️ Fullscreen Exit Warning (${newCount}/2)\n\nYou exited fullscreen mode. You have ${3 - newCount} more attempt(s) before auto-submit.`
-          );
-          setShowWarningModal(true);
-        } else if (newCount === 3) {
-          // Third violation: Mark for auto-submit
-          console.log('Fullscreen exit: Violation count reached 3, triggering auto-submit');
-          setIsSubmitted(true);
-          setShowWarningModal(false);
-        }
-        
-        return newCount;
-      });
+      console.log('🔴 Fullscreen exited');
+      triggerViolation('FULLSCREEN_EXIT', 'Fullscreen Mode Exited');
     }
-  }, [isFullscreenCurrently]);
+  }, [isFullscreenCurrently, triggerViolation]);
 
   // Auto-submit quiz (with partial answers allowed)
   const handleAutoSubmit = useCallback(async () => {
-    console.log('handleAutoSubmit called, isSubmitted:', isSubmitted, 'applicationId:', applicationId);
+    // Prevent double auto-submit
+    if (autoSubmitInProgressRef.current) {
+      console.log('⏸️ Auto-submit already in progress');
+      return;
+    }
     
-    if (isSubmitted || !applicationId) return;
+    if (!isSubmitted || !applicationId) return;
+    
+    autoSubmitInProgressRef.current = true;
 
     try {
       setSubmitting(true);
@@ -275,6 +255,30 @@ const SecureQuiz = ({
     }
   }, []);
 
+  // Handle page refresh / close / unload (beforeunload event)
+  // This triggers auto-submit instantly WITHOUT warning
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleBeforeUnload = (e) => {
+      if (!autoSubmitInProgressRef.current && !isSubmitted) {
+        console.log('🔴 Page refresh/close/unload detected - AUTO-SUBMIT without warning');
+        e.preventDefault();
+        e.returnValue = '';
+        
+        // Trigger immediate auto-submit
+        autoSubmitInProgressRef.current = true;
+        setIsSubmitted(true);
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [isOpen, isSubmitted]);
+
   // Setup event listeners on quiz start
   useEffect(() => {
     if (!isOpen || !questions.length || listenersAddedRef.current) return;
@@ -285,6 +289,8 @@ const SecureQuiz = ({
     setViolationCount(0);
     setIsSubmitted(false);
     setShowWarningModal(false);
+    autoSubmitInProgressRef.current = false;
+    lastViolationTimeRef.current = {};
 
     // Enter fullscreen
     enterFullscreen();
@@ -296,6 +302,8 @@ const SecureQuiz = ({
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('blur', handleWindowBlur);
     document.addEventListener('fullscreenchange', handleFullscreenChange);
+
+    console.log('✅ Anti-cheat system initialized - All listeners active');
 
     return () => {
       // Cleanup event listeners
@@ -340,8 +348,8 @@ const SecureQuiz = ({
 
   // Auto-submit when violation count reaches 3
   useEffect(() => {
-    if (violationCount === 3 && !isSubmitted) {
-      console.log('Violation count reached 3, setting isSubmitted to true');
+    if (violationCount >= 3 && !isSubmitted) {
+      console.log('🚫 Third violation reached - Triggering auto-submit');
       setIsSubmitted(true);
     }
   }, [violationCount, isSubmitted]);
