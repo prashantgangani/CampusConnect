@@ -26,6 +26,12 @@ const uploadResume = async (file, onUploadProgress) => {
   }
 };
 
+const getResumeUrl = async (publicId) => {
+  const response = await api.get(`/resume/download/${encodeURIComponent(publicId)}`);
+  return response.data;
+};
+
 export default {
-  uploadResume
+  uploadResume,
+  getResumeUrl
 };

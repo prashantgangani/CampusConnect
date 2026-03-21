@@ -551,6 +551,44 @@ export const getMentorAwaitingApplications = async (req, res) => {
   }
 };
 
+// Get mentor approved applications for company
+export const getCompanyApprovedApplications = async (req, res) => {
+  try {
+    const companyId = req.user._id;
+
+    const companyJobs = await Job.find({ company: companyId }).select('_id').lean();
+    const companyJobIds = companyJobs.map((job) => job._id);
+
+    if (companyJobIds.length === 0) {
+      return res.status(200).json({
+        success: true,
+        count: 0,
+        data: []
+      });
+    }
+
+    const applications = await Application.find({
+      jobId: { $in: companyJobIds },
+      status: 'mentor_approved'
+    })
+      .populate('studentId', 'name email')
+      .populate('jobId', 'title')
+      .sort({ updatedAt: -1 });
+
+    return res.status(200).json({
+      success: true,
+      count: applications.length,
+      data: applications
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: 'Error fetching company approved applications',
+      error: error.message
+    });
+  }
+};
+
 // Approve application by mentor
 export const approveApplicationByMentor = async (req, res) => {
   try {

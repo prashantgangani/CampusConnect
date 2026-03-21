@@ -324,24 +324,57 @@ const StudentProfile = () => {
       return;
     }
 
-    const isPdf = (resumePreview?.fileType || '').toLowerCase().includes('pdf')
-      || (resumePreview?.fileName || '').toLowerCase().endsWith('.pdf');
-
-    if (!isPdf) {
-      window.open(resumePreview.url, '_blank', 'noopener,noreferrer');
-      return;
-    }
+    const publicId = resumePreview?.publicId || resumePreview?.url?.split('/').slice(-1)[0] || null;
 
     try {
-      const response = await fetch(resumePreview.url);
-      const blob = await response.blob();
-      const pdfBlob = new Blob([blob], { type: 'application/pdf' });
-      const blobUrl = URL.createObjectURL(pdfBlob);
-      window.open(blobUrl, '_blank', 'noopener,noreferrer');
-      setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+      if (publicId) {
+        // Fetch the secure URL from backend
+        const urlResponse = await resumeService.getResumeUrl(publicId);
+
+        if (urlResponse?.success && urlResponse?.url) {
+          try {
+            // Try to fetch as blob first
+            const response = await fetch(urlResponse.url, {
+              headers: {
+                'Accept': 'application/pdf'
+              }
+            });
+
+            if (!response.ok) {
+              throw new Error(`HTTP ${response.status}`);
+            }
+
+            const blob = await response.blob();
+            
+            // Verify blob is a valid PDF
+            if (blob.size === 0) {
+              throw new Error('Received empty PDF');
+            }
+
+            if (!blob.type.includes('pdf') && !blob.type.includes('octet-stream')) {
+              throw new Error('Invalid PDF format');
+            }
+
+            const blobUrl = URL.createObjectURL(blob);
+            window.open(blobUrl, '_blank', 'noopener,noreferrer');
+            return;
+          } catch (fetchError) {
+            console.warn('Blob fetch failed, trying direct URL:', fetchError);
+            // Fallback to direct URL if blob fetch fails
+            window.open(urlResponse.url, '_blank', 'noopener,noreferrer');
+            return;
+          }
+        }
+      }
+
+      if (resumePreview.url) {
+        window.open(resumePreview.url, '_blank', 'noopener,noreferrer');
+      } else {
+        setMessage({ text: 'Resume URL could not be resolved', type: 'error' });
+      }
     } catch (error) {
-      console.error('Error opening PDF resume:', error);
-      window.open(resumePreview.url, '_blank', 'noopener,noreferrer');
+      console.error('Error opening resume:', error);
+      setMessage({ text: 'Failed to open resume. Please try again.', type: 'error' });
     }
   };
 

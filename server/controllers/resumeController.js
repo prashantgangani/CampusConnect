@@ -1,6 +1,8 @@
 import StudentProfile from '../models/StudentProfile.js';
 import User from '../models/User.js';
-import { uploadResumeToCloudinary, deleteResumeFromCloudinary } from '../config/cloudinary.js';
+import { uploadResumeToCloudinary, deleteResumeFromCloudinary, cloudinary } from '../config/cloudinary.js';
+import https from 'https';
+import http from 'http';
 
 export const uploadResume = async (req, res) => {
   try {
@@ -55,12 +57,50 @@ export const uploadResume = async (req, res) => {
 
     return res.status(200).json({
       message: 'Resume uploaded successfully',
-      url: uploaded.secure_url
+      url: uploaded.secure_url,
+      publicId: uploaded.public_id
     });
   } catch (error) {
     console.error('Resume upload error:', error);
     return res.status(500).json({
       message: error.message || 'Failed to upload resume'
+    });
+  }
+};
+
+export const downloadResume = async (req, res) => {
+  try {
+    const { publicId } = req.params;
+
+    if (!publicId) {
+      return res.status(400).json({
+        message: 'PublicId is required'
+      });
+    }
+
+    // Fetch resource details from Cloudinary
+    const resource = await cloudinary.api.resource(publicId, {
+      resource_type: 'raw'
+    });
+
+    if (!resource || !resource.secure_url) {
+      return res.status(404).json({
+        message: 'Resume not found on Cloudinary'
+      });
+    }
+
+    // Return the secure URL with proper headers
+    res.set('Cache-Control', 'public, max-age=3600');
+    res.set('Content-Type', 'application/json');
+    
+    return res.status(200).json({
+      success: true,
+      url: resource.secure_url
+    });
+  } catch (error) {
+    console.error('Resume download error:', error);
+    res.status(500).json({
+      message: error.message || 'Failed to fetch resume'
     });
   }
 };

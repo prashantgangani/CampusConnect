@@ -3,6 +3,8 @@ import path from 'path';
 import { v2 as cloudinary } from 'cloudinary';
 import streamifier from 'streamifier';
 
+export { cloudinary };
+
 const requiredKeys = ['CLOUDINARY_CLOUD_NAME', 'CLOUDINARY_API_KEY', 'CLOUDINARY_API_SECRET'];
 const missingKeys = requiredKeys.filter((key) => !process.env[key]);
 
@@ -34,7 +36,10 @@ export const uploadResumeToCloudinary = ({ buffer, userId, originalName = '', mi
         resource_type: 'raw',
         public_id: publicId,
         use_filename: true,
-        unique_filename: true
+        unique_filename: true,
+        access_mode: 'public',
+        type: 'upload',
+        flags: 'keep_iptc'  // Preserve metadata
       },
       (error, result) => {
         if (error) {

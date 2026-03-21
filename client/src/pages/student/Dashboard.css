@@ -722,6 +722,58 @@
   margin-bottom: 16px;
 }
 
+.quick-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.action-card {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  transition: all 0.2s;
+  cursor: pointer;
+}
+
+.action-card:hover {
+  transform: scale(1.02);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.action-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  flex-shrink: 0;
+}
+
+.action-content {
+  flex: 1;
+}
+
+.action-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #111827;
+  margin-bottom: 4px;
+}
+
+.action-description {
+  font-size: 14px;
+  color: #6b7280;
+  line-height: 1.4;
+}
+
 .action-btn-group {
   display: flex;
   flex-direction: column;
@@ -1157,6 +1209,10 @@
     grid-template-columns: repeat(2, 1fr);
   }
 
+  .quick-actions-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
   .dashboard-header {
     padding: 12px 24px;
   }
@@ -1190,11 +1246,38 @@
     gap: 12px;
   }
 
+  .quick-actions-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
   .stat-card {
     padding: 16px;
     flex-direction: column;
     align-items: center;
     text-align: center;
+  }
+
+  .action-card {
+    padding: 16px;
+    flex-direction: row;
+    align-items: center;
+    text-align: left;
+  }
+
+  .action-icon {
+    width: 40px;
+    height: 40px;
+    font-size: 20px;
+  }
+
+  .action-title {
+    font-size: 14px;
+    margin-bottom: 2px;
+  }
+
+  .action-description {
+    font-size: 12px;
   }
 
   .section-card {
@@ -1247,7 +1330,8 @@
 .quiz-modal-header h3,
 .quiz-question-text,
 .quiz-result-title,
-.quiz-result-score {
+.quiz-result-score,
+.action-title {
   color: #f8fbff;
 }
 
@@ -1261,7 +1345,8 @@
 .completion-remaining,
 .items-count,
 .quiz-progress,
-.quiz-result-text {
+.quiz-result-text,
+.action-description {
   color: #b9c7de;
 }
 
@@ -1305,14 +1390,16 @@
 .opportunity-item,
 .quiz-modal,
 .quiz-result-modal,
-.quiz-question-block {
+.quiz-question-block,
+.action-card {
   background: rgba(14, 34, 76, 0.82);
   border-color: rgba(148, 163, 184, 0.22);
   box-shadow: 0 10px 28px rgba(1, 6, 18, 0.35);
 }
 
 .application-item:hover,
-.quiz-question-block:hover {
+.quiz-question-block:hover,
+.action-card:hover {
   background: rgba(22, 45, 95, 0.9);
 }
 

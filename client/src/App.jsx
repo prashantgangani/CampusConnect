@@ -11,6 +11,7 @@ import JobList from './pages/student/JobList';
 import CompanyDashboard from './pages/company/CompanyDashboard';
 import PostJob from './pages/company/PostJob';
 import ManageJobs from './pages/company/ManageJobs';
+import CompanyApplicants from './pages/company/CompanyApplicants';
 import MentorDashboard from './pages/mentor/MentorDashboard';
 import StudentApprovals from './pages/mentor/StudentApprovals';
 import PlacementDashboard from './pages/placement/PlacementDashboard';
@@ -56,6 +57,10 @@ function App() {
             <Route 
               path="/company/manage-jobs" 
               element={<ProtectedRoute element={<ManageJobs />} requiredRole="company" />} 
+            />
+            <Route 
+              path="/company/applicants" 
+              element={<ProtectedRoute element={<CompanyApplicants />} requiredRole="company" />} 
             />
             
             {/* Mentor Routes */}

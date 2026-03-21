@@ -350,7 +350,7 @@ export const getCompanyStats = async (req, res) => {
     const [applicants, interviews, hired] = await Promise.all([
       Application.countDocuments({
         jobId: { $in: companyJobIds },
-        status: { $ne: 'withdrawn' }
+        status: 'mentor_approved'
       }),
       Application.countDocuments({
         jobId: { $in: companyJobIds },

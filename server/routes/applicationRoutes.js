@@ -9,8 +9,10 @@ import {
   getQuizResult,
   getMentorAwaitingApplications,
   approveApplicationByMentor,
-  rejectApplicationByMentor
+  rejectApplicationByMentor,
+  getCompanyApprovedApplications
 } from '../controllers/applicationController.js';
+import { getStudentProfileForCompany } from '../controllers/studentController.js';
 import { protect, authorize } from '../middlewares/authMiddleware.js';
 
 const router = express.Router();
@@ -22,6 +24,12 @@ router.use(protect);
 router.get('/mentor/awaiting', authorize('mentor'), getMentorAwaitingApplications);
 router.patch('/:id/approve', authorize('mentor'), approveApplicationByMentor);
 router.patch('/:id/reject', authorize('mentor'), rejectApplicationByMentor);
+
+// Company route for mentor-approved applications
+router.get('/company/approved', authorize('company'), getCompanyApprovedApplications);
+
+// Company route to view student profile (only for approved applications)
+router.get('/student/:studentId/profile', authorize('company'), getStudentProfileForCompany);
 
 // Student routes require student role
 router.use(authorize('student'));

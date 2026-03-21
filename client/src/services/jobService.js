@@ -54,6 +54,36 @@ const jobService = {
     }
   },
 
+  // Get company-approved applicants (mentor-approved)
+  getCompanyApprovedApplicants: async () => {
+    try {
+      const response = await api.get('/applications/company/approved');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+
+  // Get student profile for company (only for approved applications)
+  getStudentProfileForCompany: async (studentId) => {
+    try {
+      const response = await api.get(`/applications/student/${studentId}/profile`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+
+  // Get secure resume URL via backend proxy
+  getResumeUrl: async (publicId) => {
+    try {
+      const response = await api.get(`/resume/download/${encodeURIComponent(publicId)}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+
   // Update job
   updateJob: async (jobId, jobData) => {
     try {

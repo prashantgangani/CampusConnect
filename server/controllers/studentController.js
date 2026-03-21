@@ -1,5 +1,6 @@
 import StudentProfile from '../models/StudentProfile.js';
 import User from '../models/User.js';
+import Job from '../models/Job.js';
 import SuggestedJob from '../models/SuggestedJob.js';
 import Application from '../models/Application.js';
 import { deleteResumeFromCloudinary, uploadResumeToCloudinary } from '../config/cloudinary.js';
@@ -368,6 +369,54 @@ export const requestMentorByEmail = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'Failed to send mentor request',
+      error: error.message
+    });
+  }
+};
+
+// Get student profile for company (only if company has approved application)
+export const getStudentProfileForCompany = async (req, res) => {
+  try {
+    const { studentId } = req.params;
+    const companyId = req.user._id;
+
+    // Check if company has an approved application from this student
+    const companyJobs = await Job.find({ company: companyId }).select('_id').lean();
+    const companyJobIds = companyJobs.map((job) => job._id);
+
+    const hasApprovedApplication = await Application.findOne({
+      studentId,
+      jobId: { $in: companyJobIds },
+      status: 'mentor_approved'
+    });
+
+    if (!hasApprovedApplication) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. No approved application found for this student.'
+      });
+    }
+
+    const profile = await StudentProfile.findOne({ userId: studentId })
+      .populate('mentor', 'name email')
+      .populate('mentorRequested', 'name email');
+    
+    if (!profile) {
+      return res.status(404).json({
+        success: false,
+        message: 'Student profile not found'
+      });
+    }
+    
+    res.status(200).json({
+      success: true,
+      data: profile
+    });
+  } catch (error) {
+    console.error('Error fetching student profile for company:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching student profile',
       error: error.message
     });
   }
