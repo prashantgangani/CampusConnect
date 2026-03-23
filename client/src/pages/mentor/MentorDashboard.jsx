@@ -79,8 +79,14 @@ const MentorDashboard = () => {
     return () => clearTimeout(timer);
   }, [toast]);
 
+  const isExpiredJob = (job) => {
+    if (job.status === 'expired') return true;
+    if (!job.applicationDeadline) return false;
+    return new Date(job.applicationDeadline) < new Date();
+  };
+
   const stats = useMemo(() => {
-    const activeJobs = jobs.filter((job) => job.status === 'active').length;
+    const activeJobs = jobs.filter((job) => !isExpiredJob(job)).length;
     const suggestionCount = totalSuggestions;
 
     return {
@@ -169,12 +175,6 @@ const MentorDashboard = () => {
     } finally {
       setSubmitting(false);
     }
-  };
-
-  const isExpiredJob = (job) => {
-    if (job.status === 'expired') return true;
-    if (!job.applicationDeadline) return false;
-    return new Date(job.applicationDeadline) < new Date();
   };
 
   const handleLogout = () => {
