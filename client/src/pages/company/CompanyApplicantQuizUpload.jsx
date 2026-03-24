@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import jobService from '../../services/jobService';
+import quizManager from '../../services/quizManager';
 import '../student/Dashboard.css';
 import './CompanyApplicantQuizUpload.css';
 
@@ -19,6 +20,9 @@ const CompanyApplicantQuizUpload = () => {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState({ text: '', type: '' });
   const [quizSaving, setQuizSaving] = useState(false);
+  const [quizzes, setQuizzes] = useState([]);
+  const [loadingQuizzes, setLoadingQuizzes] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
 
   const [quizForm, setQuizForm] = useState({
     jobId: '',
@@ -28,9 +32,49 @@ const CompanyApplicantQuizUpload = () => {
     timeLimit: 30,
     startTime: '',
     endTime: '',
-    quizDeadline: '',
     questions: [createEmptyQuestion()]
   });
+
+  // Auto-calculate duration when start and end times change
+  const calculateDuration = (start, end) => {
+    if (!start || !end) return '';
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return '';
+    const diffMs = endDate - startDate;
+    if (diffMs <= 0) return '';
+    const diffMins = Math.round(diffMs / 60000);
+    return diffMins.toString();
+  };
+
+  // Auto-calculate end time when start time and duration change (FIXED - no timezone issues)
+  const calculateEndTime = (start, durationStr) => {
+    if (!start || !durationStr) return '';
+    const duration = parseInt(durationStr, 10);
+    if (isNaN(duration) || duration <= 0) return '';
+    
+    // Parse datetime-local string: "2026-03-24T21:30"
+    const dateParts = start.split('T');
+    if (dateParts.length !== 2) return '';
+    
+    const [year, month, day] = dateParts[0].split('-').map(Number);
+    const [hours, minutes] = dateParts[1].split(':').map(Number);
+    
+    // Create date with local timezone (not UTC)
+    const startDate = new Date(year, month - 1, day, hours, minutes, 0);
+    
+    // Add duration in minutes
+    const endDate = new Date(startDate.getTime() + duration * 60000);
+    
+    // Format back to datetime-local: "2026-03-24T21:50"
+    const endYear = endDate.getFullYear();
+    const endMonth = String(endDate.getMonth() + 1).padStart(2, '0');
+    const endDay = String(endDate.getDate()).padStart(2, '0');
+    const endHours = String(endDate.getHours()).padStart(2, '0');
+    const endMinutes = String(endDate.getMinutes()).padStart(2, '0');
+    
+    return `${endYear}-${endMonth}-${endDay}T${endHours}:${endMinutes}`;
+  };
 
   const loadCompanyQuizForJob = async (jobId) => {
     if (!jobId) return;
@@ -47,7 +91,6 @@ const CompanyApplicantQuizUpload = () => {
           timeLimit: quiz.timeLimit || 30,
           startTime: quiz.startTime ? new Date(quiz.startTime).toISOString().slice(0, 16) : '',
           endTime: quiz.endTime ? new Date(quiz.endTime).toISOString().slice(0, 16) : '',
-          quizDeadline: quiz.quizDeadline ? new Date(quiz.quizDeadline).toISOString().slice(0, 16) : '',
           questions: Array.isArray(quiz.questions) && quiz.questions.length > 0 ? quiz.questions : [createEmptyQuestion()]
         }));
       } else {
@@ -59,7 +102,6 @@ const CompanyApplicantQuizUpload = () => {
           timeLimit: 30,
           startTime: '',
           endTime: '',
-          quizDeadline: '',
           questions: [createEmptyQuestion()]
         }));
       }
@@ -99,6 +141,7 @@ const CompanyApplicantQuizUpload = () => {
     const state = location.state;
     if (state?.quiz && state?.isEdit) {
       const quiz = state.quiz;
+      setIsEditMode(true);
       setQuizForm({
         jobId: quiz.jobId,
         title: quiz.title || 'Company Round Quiz',
@@ -107,12 +150,17 @@ const CompanyApplicantQuizUpload = () => {
         timeLimit: quiz.timeLimit || 30,
         startTime: quiz.startTime ? new Date(quiz.startTime).toISOString().slice(0, 16) : '',
         endTime: quiz.endTime ? new Date(quiz.endTime).toISOString().slice(0, 16) : '',
-        quizDeadline: quiz.quizDeadline ? new Date(quiz.quizDeadline).toISOString().slice(0, 16) : '',
         questions: Array.isArray(quiz.questions) && quiz.questions.length > 0 ? quiz.questions : [createEmptyQuestion()]
       });
       setLoading(false);
+    } else {
+      setIsEditMode(false);
     }
   }, [location.state]);
+
+  useEffect(() => {
+    loadQuizzes();
+  }, []);
 
   const addQuestion = () => {
     setQuizForm((prev) => ({
@@ -206,7 +254,6 @@ const CompanyApplicantQuizUpload = () => {
         timeLimit: Number(quizForm.timeLimit) || 30,
         startTime: quizForm.startTime,
         endTime: quizForm.endTime,
-        quizDeadline: quizForm.endTime,
         questions: quizForm.questions.map((question) => ({
           question: question.question.trim(),
           options: question.options.map((option) => option.trim()),
@@ -215,16 +262,107 @@ const CompanyApplicantQuizUpload = () => {
         }))
       };
 
-      await jobService.uploadCompanyApplicantQuiz(quizForm.jobId, payload);
+      // Validate quiz data
+      const validation = quizManager.validateQuizData({
+        ...payload,
+        jobId: quizForm.jobId
+      });
+
+      if (!validation.isValid) {
+        setMessage({ text: validation.errors.join('; '), type: 'error' });
+        return;
+      }
+
+      await quizManager.uploadQuiz(quizForm.jobId, payload);
+
+      const successMsg = isEditMode 
+        ? 'Quiz updated successfully! Changes will apply to new quiz attempts.'
+        : 'Quiz uploaded successfully. Eligible applicants will move to company quiz round.';
 
       setMessage({
-        text: 'Quiz uploaded successfully. Eligible applicants will move to company quiz round.',
+        text: successMsg,
         type: 'success'
       });
+      
+      // Reset form for new quiz (only if not in edit mode)
+      if (!isEditMode) {
+        setQuizForm({
+          jobId: quizForm.jobId,
+          title: 'Company Round Quiz',
+          description: '',
+          passingPercentage: 70,
+          timeLimit: 30,
+          startTime: '',
+          endTime: '',
+          questions: [createEmptyQuestion()]
+        });
+      }
+      
+      // Reload quizzes after upload
+      setTimeout(() => loadQuizzes(), 500);
     } catch (err) {
       setMessage({ text: err.message || 'Failed to upload company applicant quiz.', type: 'error' });
     } finally {
       setQuizSaving(false);
+    }
+  };
+
+  const loadQuizzes = async () => {
+    setLoadingQuizzes(true);
+    try {
+      const response = await quizManager.getAllQuizzes();
+      setQuizzes(response.data || []);
+    } catch (error) {
+      console.error('Failed to load company quizzes:', error);
+      setQuizzes([]);
+    } finally {
+      setLoadingQuizzes(false);
+    }
+  };
+
+  const handleEditQuiz = (quiz) => {
+    navigate('/company/quiz-upload', { state: { quiz, isEdit: true } });
+  };
+
+  const handleDeleteQuiz = async (quiz) => {
+    if (!window.confirm(`Are you sure you want to delete the quiz for "${quiz.jobTitle}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      await quizManager.deleteQuiz(quiz.jobId);
+      setMessage({
+        text: `Quiz for "${quiz.jobTitle}" deleted successfully!`,
+        type: 'success'
+      });
+      loadQuizzes();
+    } catch (error) {
+      console.error('Failed to delete quiz:', error);
+      setMessage({
+        text: error.message || 'Failed to delete quiz. Please try again.',
+        type: 'error'
+      });
+    }
+  };
+
+  const handleReassignQuiz = async (quiz) => {
+    const studentEmail = prompt(`Enter student email to reassign quiz for "${quiz.jobTitle}":`);
+    if (!studentEmail || !studentEmail.trim()) {
+      return;
+    }
+
+    try {
+      await quizManager.reassignQuiz(quiz.jobId, studentEmail.trim());
+      setMessage({
+        text: `Quiz reassigned successfully to ${studentEmail}!`,
+        type: 'success'
+      });
+    } catch (error) {
+      console.error('Failed to reassign quiz:', error);
+      setMessage({
+        text: error.message || 'Failed to reassign quiz. Please check the email and try again.',
+        type: 'error'
+      });
     }
   };
 
@@ -248,8 +386,8 @@ const CompanyApplicantQuizUpload = () => {
       </div>
 
       <div className="welcome-section">
-        <h1>Upload Company Applicant Quiz</h1>
-        <p>Create and manage company-round quizzes without crowding the applicants screen.</p>
+        <h1>{isEditMode ? 'Edit Company Quiz' : 'Upload Company Applicant Quiz'}</h1>
+        <p>{isEditMode ? 'Update the quiz configuration and questions.' : 'Create and manage company-round quizzes without crowding the applicants screen.'}</p>
       </div>
 
       <div className="dashboard-main">
@@ -307,7 +445,25 @@ const CompanyApplicantQuizUpload = () => {
                   <input
                     type="datetime-local"
                     value={quizForm.startTime}
-                    onChange={(event) => setQuizForm((prev) => ({ ...prev, startTime: event.target.value }))}
+                    onChange={(event) => {
+                      const newStart = event.target.value;
+                      setQuizForm((prev) => ({ ...prev, startTime: newStart }));
+                      
+                      // If end time exists, recalculate duration
+                      if (quizForm.endTime) {
+                        const duration = calculateDuration(newStart, quizForm.endTime);
+                        if (duration) {
+                          setQuizForm((prev) => ({ ...prev, timeLimit: duration }));
+                        }
+                      }
+                      // If duration exists but no end time, calculate end time
+                      else if (quizForm.timeLimit && quizForm.timeLimit.toString().trim() !== '') {
+                        const newEndTime = calculateEndTime(newStart, quizForm.timeLimit.toString());
+                        if (newEndTime) {
+                          setQuizForm((prev) => ({ ...prev, endTime: newEndTime }));
+                        }
+                      }
+                    }}
                   />
                 </label>
 
@@ -316,16 +472,17 @@ const CompanyApplicantQuizUpload = () => {
                   <input
                     type="datetime-local"
                     value={quizForm.endTime}
-                    onChange={(event) => setQuizForm((prev) => ({ ...prev, endTime: event.target.value }))}
-                  />
-                </label>
-
-                <label>
-                  Deadline
-                  <input
-                    type="datetime-local"
-                    value={quizForm.quizDeadline}
-                    onChange={(event) => setQuizForm((prev) => ({ ...prev, quizDeadline: event.target.value }))}
+                    onChange={(event) => {
+                      const newEnd = event.target.value;
+                      setQuizForm((prev) => ({ ...prev, endTime: newEnd }));
+                      // Auto-calculate duration only if start time is set
+                      if (quizForm.startTime) {
+                        const duration = calculateDuration(quizForm.startTime, newEnd);
+                        if (duration) {
+                          setQuizForm((prev) => ({ ...prev, timeLimit: duration }));
+                        }
+                      }
+                    }}
                   />
                 </label>
 
@@ -344,9 +501,24 @@ const CompanyApplicantQuizUpload = () => {
                   Time (minutes)
                   <input
                     type="number"
-                    min="1"
                     value={quizForm.timeLimit}
-                    onChange={(event) => setQuizForm((prev) => ({ ...prev, timeLimit: event.target.value }))}
+                    placeholder="Enter duration in minutes"
+                    onChange={(event) => {
+                      const inputValue = event.target.value;
+                      // Allow empty string so user can clear the field
+                      setQuizForm((prev) => ({ ...prev, timeLimit: inputValue }));
+                      
+                      // Only calculate end time if we have valid start time and duration
+                      if (quizForm.startTime && inputValue && inputValue.trim() !== '') {
+                        const durationNum = parseInt(inputValue, 10);
+                        if (durationNum > 0) {
+                          const newEndTime = calculateEndTime(quizForm.startTime, inputValue);
+                          if (newEndTime) {
+                            setQuizForm((prev) => ({ ...prev, endTime: newEndTime }));
+                          }
+                        }
+                      }
+                    }}
                   />
                 </label>
               </div>
@@ -441,11 +613,67 @@ const CompanyApplicantQuizUpload = () => {
                   disabled={!canSubmitQuiz || quizSaving}
                   onClick={handleUploadQuiz}
                 >
-                  {quizSaving ? 'Uploading...' : 'Upload Quiz'}
+                  {quizSaving ? (isEditMode ? 'Updating...' : 'Uploading...') : (isEditMode ? 'Update Quiz' : 'Upload Quiz')}
                 </button>
               </div>
             </div>
           )}
+        </div>
+
+        {/* Uploaded Quizzes Section */}
+        <div className="full-width-section">
+          <div className="company-quiz-upload-card">
+            <h3>Uploaded Quizzes</h3>
+            {loadingQuizzes ? (
+              <p>Loading quizzes...</p>
+            ) : quizzes.length === 0 ? (
+              <p className="applicants-muted">No quizzes uploaded yet. Create one above to get started.</p>
+            ) : (
+              <div className="quiz-grid-container">
+                {quizzes.map((quiz) => (
+                  <div key={quiz._id} className="quiz-card">
+                    <div className="quiz-card-header">
+                      <h4 title={quiz.jobTitle}>{quiz.jobTitle || 'Quiz'}</h4>
+                      <span className="quiz-questions-count">{quiz.questions?.length || 0} Q</span>
+                    </div>
+                    <div className="quiz-card-body">
+                      <p><strong>Time:</strong> {quiz.timeLimit} mins</p>
+                      <p><strong>Pass:</strong> {quiz.passingPercentage}%</p>
+                      {quiz.description && (
+                        <p className="quiz-description">{quiz.description}</p>
+                      )}
+                    </div>
+                    <div className="quiz-card-footer">
+                      <small>{new Date(quiz.createdAt).toLocaleDateString()}</small>
+                    </div>
+                    <div className="quiz-card-actions">
+                      <button 
+                        className="profile-btn-small" 
+                        onClick={() => handleEditQuiz(quiz)}
+                        title="Edit this quiz"
+                      >
+                        ✏️ Edit
+                      </button>
+                      <button 
+                        className="reject-btn-small" 
+                        onClick={() => handleDeleteQuiz(quiz)}
+                        title="Delete this quiz"
+                      >
+                        🗑️ Delete
+                      </button>
+                      <button 
+                        className="profile-btn-small" 
+                        onClick={() => handleReassignQuiz(quiz)}
+                        title="Reassign quiz to a student"
+                      >
+                        ↪️ Reassign
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

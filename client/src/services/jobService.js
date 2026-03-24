@@ -129,6 +129,15 @@ const jobService = {
     }
   },
 
+  hireFromInterview: async (applicationId) => {
+    try {
+      const response = await api.patch(`/applications/company/${applicationId}/select`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+
   // Get student profile for company (only for approved applications)
   getStudentProfileForCompany: async (studentId) => {
     try {

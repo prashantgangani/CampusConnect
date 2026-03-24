@@ -380,20 +380,20 @@ export const getStudentProfileForCompany = async (req, res) => {
     const { studentId } = req.params;
     const companyId = req.user._id;
 
-    // Check if company has an approved application from this student
+    // Check if company has an application from this student in any eligible stage
     const companyJobs = await Job.find({ company: companyId }).select('_id').lean();
     const companyJobIds = companyJobs.map((job) => job._id);
 
-    const hasApprovedApplication = await Application.findOne({
+    const hasApplication = await Application.findOne({
       studentId,
       jobId: { $in: companyJobIds },
-      status: 'mentor_approved'
+      status: { $in: ['mentor_approved', 'company_quiz_pending', 'company_quiz_failed', 'company_quiz_passed', 'shortlisted', 'interview_scheduled'] }
     });
 
-    if (!hasApprovedApplication) {
+    if (!hasApplication) {
       return res.status(403).json({
         success: false,
-        message: 'Access denied. No approved application found for this student.'
+        message: 'Access denied. No eligible application found for this student.'
       });
     }
 

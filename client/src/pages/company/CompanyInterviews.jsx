@@ -4,10 +4,9 @@ import jobService from '../../services/jobService';
 import '../student/Dashboard.css';
 import './CompanyApplicants.css';
 
-const CompanyApplicants = () => {
+const CompanyInterviews = () => {
   const navigate = useNavigate();
-  const [approvedApplicants, setApprovedApplicants] = useState([]);
-  const [passedApplicants, setPassedApplicants] = useState([]);
+  const [interviewApplicants, setInterviewApplicants] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [message, setMessage] = useState(null);
@@ -20,17 +19,15 @@ const CompanyApplicants = () => {
   const [selectedJobFilter, setSelectedJobFilter] = useState('');
   const [allJobs, setAllJobs] = useState([]);
 
-  const loadApplicants = async () => {
+  const loadInterviewApplicants = async () => {
     setLoading(true);
     setError(null);
     try {
       // Load applicants
       const applicantsData = await jobService.getCompanyApprovedApplicants();
-      const pendingList = applicantsData.pendingApplicants || applicantsData.data || [];
-      const passedList = applicantsData.passedApplicants || [];
+      const interviewList = applicantsData.interviewApplicants || [];
 
-      setApprovedApplicants(Array.isArray(pendingList) ? pendingList : []);
-      setPassedApplicants(Array.isArray(passedList) ? passedList : []);
+      setInterviewApplicants(Array.isArray(interviewList) ? interviewList : []);
 
       // Load jobs for filter
       try {
@@ -47,7 +44,7 @@ const CompanyApplicants = () => {
   };
 
   useEffect(() => {
-    loadApplicants();
+    loadInterviewApplicants();
   }, []);
 
   const handleViewProfile = async (studentId) => {
@@ -113,13 +110,27 @@ const CompanyApplicants = () => {
   };
 
   // Filter applicants by job title
-  const filteredApprovedApplicants = selectedJobFilter
-    ? approvedApplicants.filter((app) => app.jobId?._id === selectedJobFilter)
-    : approvedApplicants;
+  const filteredInterviewApplicants = selectedJobFilter
+    ? interviewApplicants.filter((app) => app.jobId?._id === selectedJobFilter)
+    : interviewApplicants;
 
-  const filteredPassedApplicants = selectedJobFilter
-    ? passedApplicants.filter((app) => app.jobId?._id === selectedJobFilter)
-    : passedApplicants;
+  const handleHireFromInterview = async (applicationId) => {
+    if (!applicationId) return;
+
+    const confirmed = window.confirm('Offer this student a position?');
+    if (!confirmed) return;
+
+    try {
+      setActionLoadingId(applicationId);
+      await jobService.hireFromInterview(applicationId);
+      setInterviewApplicants((prev) => prev.filter((app) => app._id !== applicationId));
+      setMessage({ type: 'success', text: 'Student offered a position.' });
+    } catch (err) {
+      setError(err.message || 'Failed to hire student');
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
 
   const handleRejectApplicant = async (applicationId) => {
     if (!applicationId) return;
@@ -129,51 +140,14 @@ const CompanyApplicants = () => {
 
     try {
       setActionLoadingId(applicationId);
-      const response = await jobService.rejectCompanyApplicant(applicationId);
-      
-      // Remove from both lists
-      setApprovedApplicants((prev) => prev.filter((app) => app._id !== applicationId));
-      setPassedApplicants((prev) => prev.filter((app) => app._id !== applicationId));
-      
+      await jobService.rejectCompanyApplicant(applicationId);
+      setInterviewApplicants((prev) => prev.filter((app) => app._id !== applicationId));
       setMessage({ type: 'success', text: 'Applicant rejected. They have been notified.' });
       setError(null);
     } catch (err) {
       console.error('Reject error:', err);
       const errMsg = typeof err === 'string' ? err : (err?.message || 'Failed to reject applicant');
       setError(errMsg);
-    } finally {
-      setActionLoadingId(null);
-    }
-  };
-
-  const handleReassignApplicant = async (applicationId) => {
-    if (!applicationId) return;
-
-    try {
-      setActionLoadingId(applicationId);
-      await jobService.reassignCompanyApplicant(applicationId);
-      setMessage({ type: 'success', text: 'Applicant reassigned to company quiz round for retake.' });
-      await loadApplicants();
-    } catch (err) {
-      setError(err.message || 'Failed to reassign applicant');
-    } finally {
-      setActionLoadingId(null);
-    }
-  };
-
-  const handleHireApplicant = async (applicationId) => {
-    if (!applicationId) return;
-
-    const confirmed = window.confirm('Move this student to Interviews section?');
-    if (!confirmed) return;
-
-    try {
-      setActionLoadingId(applicationId);
-      await jobService.hireCompanyApplicant(applicationId);
-      setPassedApplicants((prev) => prev.filter((app) => app._id !== applicationId));
-      setMessage({ type: 'success', text: 'Student moved to Interviews section.' });
-    } catch (err) {
-      setError(err.message || 'Failed to send applicant to interviews');
     } finally {
       setActionLoadingId(null);
     }
@@ -197,14 +171,14 @@ const CompanyApplicants = () => {
         </div>
 
         <div className="header-right">
-          <button className="back-btn" onClick={() => navigate('/company/interviews')}>Go to Interviews</button>
+          <button className="back-btn" onClick={() => navigate('/company/applicants')}>Back to Applicants</button>
           <button className="back-btn" onClick={() => navigate('/company/dashboard')}>← Back to Dashboard</button>
         </div>
       </div>
 
       <div className="welcome-section">
-        <h1>View Applicants</h1>
-        <p>Track applicants and approve final hires after assessments.</p>
+        <h1>Interview Candidates</h1>
+        <p>Review and make hiring decisions for interview candidates.</p>
       </div>
 
       <div className="dashboard-main">
@@ -215,7 +189,7 @@ const CompanyApplicants = () => {
 
           {loading ? (
             <div className="applicants-card">
-              <p>Loading applicants...</p>
+              <p>Loading candidates...</p>
             </div>
           ) : (
             <>
@@ -252,60 +226,19 @@ const CompanyApplicants = () => {
                 </label>
               </div>
 
-              <div className="applicants-card">
-                <h3 className="applicants-title">Applicant Pool ({filteredApprovedApplicants.length})</h3>
-                {filteredApprovedApplicants.length === 0 ? (
-                  <p className="applicants-muted">{selectedJobFilter ? 'No applicants for this job.' : 'No applicants in pending pool right now.'}</p>
-                ) : (
-                  <ul className="approved-list">
-                    {filteredApprovedApplicants.map((app) => (
-                      <li key={app._id} className="approved-item">
-                        <div>
-                          <div className="approved-job-title">{app.jobId?.title || 'Job title not found'}</div>
-                          <div className="approved-subline">{app.studentId?.name || 'Unknown student'} • {app.studentId?.email || ''}</div>
-                          <div className="approved-subline">Applied on: {new Date(app.appliedAt).toLocaleDateString()}</div>
-                          <div className="approved-subline">Status: {app.status?.replaceAll('_', ' ')}</div>
-                        </div>
-                        <div className="approved-actions">
-                          <button
-                            onClick={() => handleViewProfile(app.studentId?._id || app.studentId)}
-                            className="profile-btn-small"
-                            disabled={actionLoadingId === `profile-${app._id}`}
-                          >
-                            {actionLoadingId === `profile-${app._id}` ? 'Loading...' : 'See Profile'}
-                          </button>
-                          <button
-                            onClick={() => handleRejectApplicant(app._id)}
-                            className="reject-btn-small"
-                            disabled={actionLoadingId === app._id}
-                          >
-                            {actionLoadingId === app._id ? 'Rejecting...' : 'Reject'}
-                          </button>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-
               <div className="applicants-card passed-applicants-card">
-                <h3 className="applicants-title">Quiz Results ({filteredPassedApplicants.length})</h3>
-                {filteredPassedApplicants.length === 0 ? (
-                  <p className="applicants-muted">{selectedJobFilter ? 'No quiz results for this job.' : 'No students have taken the company quiz yet.'}</p>
+                <h3 className="applicants-title">Interview Candidates ({filteredInterviewApplicants.length})</h3>
+                {filteredInterviewApplicants.length === 0 ? (
+                  <p className="applicants-muted">{selectedJobFilter ? 'No candidates in interviews for this job.' : 'No candidates in interviews yet.'}</p>
                 ) : (
                   <ul className="approved-list">
-                    {filteredPassedApplicants.map((app) => (
+                    {filteredInterviewApplicants.map((app) => (
                       <li key={app._id} className="approved-item">
                         <div>
                           <div className="approved-job-title">{app.jobId?.title || 'Job title not found'}</div>
                           <div className="approved-subline">{app.studentId?.name || 'Unknown student'} • {app.studentId?.email || ''}</div>
                           <div className="approved-subline">
-                            Quiz Score: {app.companyQuizScore ?? 'N/A'}% 
-                            {app.companyQuizScore >= 70 ? (
-                              <span style={{ color: '#10b981', marginLeft: '8px', fontWeight: '600' }}>✓ PASSED</span>
-                            ) : (
-                              <span style={{ color: '#ef4444', marginLeft: '8px', fontWeight: '600' }}>✗ FAILED</span>
-                            )}
+                            Quiz Score: {app.companyQuizScore ?? 'N/A'}%
                           </div>
                         </div>
                         <div className="approved-actions">
@@ -316,24 +249,13 @@ const CompanyApplicants = () => {
                           >
                             {actionLoadingId === `profile-${app._id}` ? 'Loading...' : 'See Profile'}
                           </button>
-                          {app.companyQuizScore < 70 && (
-                            <button
-                              onClick={() => handleReassignApplicant(app._id)}
-                              className="profile-btn-small"
-                              disabled={actionLoadingId === app._id}
-                            >
-                              {actionLoadingId === app._id ? 'Reassigning...' : 'Reassign Quiz'}
-                            </button>
-                          )}
-                          {app.companyQuizScore >= 70 && (
-                            <button
-                              onClick={() => handleHireApplicant(app._id)}
-                              className="hire-btn-small"
-                              disabled={actionLoadingId === app._id}
-                            >
-                              {actionLoadingId === app._id ? 'Processing...' : 'Send to Interview'}
-                            </button>
-                          )}
+                          <button
+                            onClick={() => handleHireFromInterview(app._id)}
+                            className="hire-btn-small"
+                            disabled={actionLoadingId === app._id}
+                          >
+                            {actionLoadingId === app._id ? 'Processing...' : 'Hire'}
+                          </button>
                           <button
                             onClick={() => handleRejectApplicant(app._id)}
                             className="reject-btn-small"
@@ -455,4 +377,4 @@ const CompanyApplicants = () => {
   );
 };
 
-export default CompanyApplicants;
+export default CompanyInterviews;

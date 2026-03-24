@@ -784,7 +784,8 @@ export const getCompanyApprovedApplications = async (req, res) => {
         count: 0,
         data: [],
         pendingApplicants: [],
-        passedApplicants: []
+        passedApplicants: [],
+        interviewApplicants: []
       });
     }
 
@@ -803,7 +804,7 @@ export const getCompanyApprovedApplications = async (req, res) => {
 
     const applications = await Application.find({
       jobId: { $in: companyJobIds },
-      status: { $in: ['mentor_approved', 'company_quiz_pending', 'company_quiz_passed'] }
+      status: { $in: ['mentor_approved', 'company_quiz_pending', 'company_quiz_passed', 'shortlisted'] }
     })
       .populate('studentId', 'name email')
       .populate('jobId', 'title')
@@ -812,10 +813,16 @@ export const getCompanyApprovedApplications = async (req, res) => {
     const now = new Date();
     const pendingApplicants = [];
     const passedApplicants = [];
+    const interviewApplicants = [];
 
     for (const application of applications) {
       const jobId = String(application.jobId?._id || application.jobId);
       const quizConfig = jobQuizMap.get(jobId);
+
+      if (application.status === 'shortlisted') {
+        interviewApplicants.push(application);
+        continue;
+      }
 
       if (application.status === 'company_quiz_passed') {
         if (quizConfig?.deadline && now >= quizConfig.deadline) {
@@ -832,7 +839,8 @@ export const getCompanyApprovedApplications = async (req, res) => {
       count: pendingApplicants.length,
       data: pendingApplicants,
       pendingApplicants,
-      passedApplicants
+      passedApplicants,
+      interviewApplicants
     });
   } catch (error) {
     return res.status(500).json({
@@ -982,7 +990,7 @@ export const getCompanyQuizzes = async (req, res) => {
       endTime: quiz.endTime,
       quizDeadline: quiz.quizDeadline,
       totalMarks: quiz.totalMarks,
-      questionsCount: quiz.questions?.length || 0,
+      questions: quiz.questions || [],
       createdAt: quiz.createdAt,
       updatedAt: quiz.updatedAt
     }));
@@ -1218,7 +1226,52 @@ export const hireApplicationByCompany = async (req, res) => {
     if (application.status !== 'company_quiz_passed') {
       return res.status(400).json({
         success: false,
-        message: 'Only passed company-quiz applicants can be approved for hiring'
+        message: 'Only passed company-quiz applicants can be sent to interviews'
+      });
+    }
+
+    application.status = 'shortlisted';
+    await application.save();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Student moved to Interviews section',
+      data: application
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: 'Error sending applicant to interviews',
+      error: error.message
+    });
+  }
+};
+
+// Select/hire applicant from interview stage
+export const selectApplicationFromInterview = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const companyId = req.user._id;
+
+    const application = await Application.findById(id).populate('jobId', 'company');
+    if (!application) {
+      return res.status(404).json({
+        success: false,
+        message: 'Application not found'
+      });
+    }
+
+    if (!application.jobId || String(application.jobId.company) !== String(companyId)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to select this applicant'
+      });
+    }
+
+    if (application.status !== 'shortlisted') {
+      return res.status(400).json({
+        success: false,
+        message: 'Only shortlisted applicants can be selected'
       });
     }
 
@@ -1227,13 +1280,13 @@ export const hireApplicationByCompany = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: 'Applicant approved and marked as hired',
+      message: 'Student selected for position',
       data: application
     });
   } catch (error) {
     return res.status(500).json({
       success: false,
-      message: 'Error approving applicant for hiring',
+      message: 'Error selecting applicant',
       error: error.message
     });
   }
@@ -1260,7 +1313,7 @@ export const rejectApplicationByCompany = async (req, res) => {
       });
     }
 
-    if (!['mentor_approved', 'company_quiz_passed'].includes(application.status)) {
+    if (!['mentor_approved', 'company_quiz_passed', 'shortlisted'].includes(application.status)) {
       return res.status(400).json({
         success: false,
         message: 'Only eligible applicant pools can be rejected by company'

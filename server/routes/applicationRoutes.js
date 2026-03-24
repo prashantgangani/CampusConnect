@@ -14,6 +14,7 @@ import {
   rejectApplicationByCompany,
   upsertCompanyApplicantQuiz,
   hireApplicationByCompany,
+  selectApplicationFromInterview,
   getCompanyApplicantQuiz,
   reassignCompanyApplicant,
   getStudentCompanyQuizzes,
@@ -39,6 +40,7 @@ router.get('/company/approved', authorize('company'), getCompanyApprovedApplicat
 router.get('/company/jobs/:jobId/quiz', authorize('company'), getCompanyApplicantQuiz);
 router.put('/company/jobs/:jobId/quiz', authorize('company'), upsertCompanyApplicantQuiz);
 router.patch('/company/:id/hire', authorize('company'), hireApplicationByCompany);
+router.patch('/company/:id/select', authorize('company'), selectApplicationFromInterview);
 router.patch('/company/:id/reject', authorize('company'), rejectApplicationByCompany);
 router.patch('/company/:id/reassign', authorize('company'), reassignCompanyApplicant);
 

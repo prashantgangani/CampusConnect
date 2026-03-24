@@ -14,7 +14,9 @@ import CompanyDashboard from './pages/company/CompanyDashboard';
 import PostJob from './pages/company/PostJob';
 import ManageJobs from './pages/company/ManageJobs';
 import CompanyApplicants from './pages/company/CompanyApplicants';
+import CompanyInterviews from './pages/company/CompanyInterviews';
 import CompanyApplicantQuizUpload from './pages/company/CompanyApplicantQuizUpload';
+import CompanyProfile from './pages/company/CompanyProfile';
 import CompanyReports from './pages/company/CompanyReports';
 import MentorDashboard from './pages/mentor/MentorDashboard';
 import StudentApprovals from './pages/mentor/StudentApprovals';
@@ -80,8 +82,20 @@ function App() {
               element={<ProtectedRoute element={<CompanyApplicantQuizUpload />} requiredRole="company" />}
             />
             <Route
+              path="/company/quiz-upload"
+              element={<ProtectedRoute element={<CompanyApplicantQuizUpload />} requiredRole="company" />}
+            />
+            <Route
+              path="/company/profile"
+              element={<ProtectedRoute element={<CompanyProfile />} requiredRole="company" />}
+            />
+            <Route
               path="/company/reports"
               element={<ProtectedRoute element={<CompanyReports />} requiredRole="company" />}
+            />
+            <Route
+              path="/company/interviews"
+              element={<ProtectedRoute element={<CompanyInterviews />} requiredRole="company" />}
             />
             
             {/* Mentor Routes */}
