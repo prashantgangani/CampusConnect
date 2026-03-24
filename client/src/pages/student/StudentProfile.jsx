@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '../../services/api';
 import resumeService from '../../services/resumeService';
 import './StudentProfile.css';
 
@@ -75,7 +75,7 @@ const StudentProfile = () => {
   const fetchProfile = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get('http://localhost:5000/api/student/profile', {
+      const response = await api.get('/student/profile', {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -142,7 +142,7 @@ const StudentProfile = () => {
       resume: overrides.resume !== undefined ? overrides.resume : resumePreview
     };
 
-    const response = await axios.put('http://localhost:5000/api/student/profile', payload, {
+    const response = await api.put('/student/profile', payload, {
       headers: { Authorization: `Bearer ${token}` }
     });
 
@@ -303,7 +303,7 @@ const StudentProfile = () => {
     
     try {
       const token = localStorage.getItem('token');
-      await axios.delete('http://localhost:5000/api/student/profile/resume', {
+      await api.delete('/student/profile/resume', {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -394,8 +394,8 @@ const StudentProfile = () => {
     try {
       setRequestingMentor(true);
       const token = localStorage.getItem('token');
-      const response = await axios.post(
-        'http://localhost:5000/api/student/request-mentor',
+      const response = await api.post(
+        '/student/request-mentor',
         { mentorEmail: email },
         {
           headers: { Authorization: `Bearer ${token}` }
@@ -432,9 +432,10 @@ const StudentProfile = () => {
     try {
       setSearchingMentors(true);
       const token = localStorage.getItem('token');
-      const response = await axios.get(
-        `http://localhost:5000/api/student/search-mentors?q=${encodeURIComponent(query)}`,
+      const response = await api.get(
+        '/student/search-mentors',
         {
+          params: { q: query },
           headers: { Authorization: `Bearer ${token}` }
         }
       );

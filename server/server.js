@@ -17,9 +17,25 @@ import resumeRoutes from "./routes/resumeRoutes.js";
 const app = express();
 
 // middleware
-app.use(cors());
+const allowedOrigins = (process.env.CLIENT_ORIGINS || process.env.CLIENT_URL || '')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow non-browser clients (no Origin header) and local development by default.
+    if (!origin || allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error('Not allowed by CORS'));
+  },
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json({ limit: '50mb' })); // Increase limit for file uploads
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
+app.set('trust proxy', 1);
 
 // 🔴 THIS LINE IS VERY IMPORTANT
 connectDB();
@@ -38,6 +54,10 @@ app.use("/api/resume", resumeRoutes);
 // test route
 app.get("/api/test", (req, res) => {
   res.json({ message: "Backend + MongoDB running" });
+});
+
+app.get('/', (req, res) => {
+  res.json({ message: 'CampusConnect API is running' });
 });
 
 const PORT = process.env.PORT || 5000;

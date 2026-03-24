@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '../../services/api';
 import mentorService from '../../services/mentorService';
 import './Dashboard.css';
 
@@ -20,7 +20,7 @@ const StudentApprovals = () => {
       setError('');
       const token = localStorage.getItem('token');
       const [response, awaitingResponse] = await Promise.all([
-        axios.get('http://localhost:5000/api/mentor/requests/pending', {
+        api.get('/mentor/requests/pending', {
           headers: { Authorization: `Bearer ${token}` }
         }),
         mentorService.getAwaitingApprovals()
@@ -57,8 +57,8 @@ const StudentApprovals = () => {
     try {
       setProcessing(profileId);
       const token = localStorage.getItem('token');
-      const response = await axios.post(
-        'http://localhost:5000/api/mentor/review-request',
+      const response = await api.post(
+        '/mentor/review-request',
         {
           profileId,
           action,

@@ -58,7 +58,7 @@ api.interceptors.response.use(
     // Return a more detailed error object
     const isNetworkError = !error.response;
     const errorMessage = isNetworkError
-      ? 'Unable to connect to server. Please ensure backend is running on port 5000.'
+      ? 'Unable to connect to server. Please check that backend is running and VITE_API_URL is set correctly.'
       : (error.response?.data?.message ||
          error.response?.data?.error ||
          error.message ||
