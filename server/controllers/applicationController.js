@@ -915,6 +915,11 @@ export const getStudentCompanyQuizzes = async (req, res) => {
     const quizzes = await CompanyApplicantQuiz.find({ jobId: { $in: jobIds } }).lean();
     const quizMap = new Map(quizzes.map((quiz) => [String(quiz.jobId), quiz]));
 
+    // Fetch company information for jobs
+    const companyIds = [...new Set(applications.map((app) => String(app.jobId?.company)).filter(Boolean))];
+    const companies = await User.find({ _id: { $in: companyIds } }).select('_id name companyName').lean();
+    const companyMap = new Map(companies.map((comp) => [String(comp._id), comp]));
+
     const now = new Date();
 
     const payload = applications.map((app) => {
@@ -923,11 +928,13 @@ export const getStudentCompanyQuizzes = async (req, res) => {
       const endTime = quiz?.endTime ? new Date(quiz.endTime) : quiz?.quizDeadline ? new Date(quiz.quizDeadline) : null;
 
       const canAttempt = app.status === 'company_quiz_pending' && (!startTime || now >= startTime) && (!endTime || now <= endTime);
+      const companyInfo = companyMap.get(String(app.jobId?.company));
 
       return {
         applicationId: app._id,
         jobId: app.jobId?._id,
         jobTitle: app.jobId?.title,
+        companyName: companyInfo?.companyName || companyInfo?.name || 'Company',
         status: app.status,
         companyQuizScore: app.companyQuizScore,
         quizTitle: quiz?.title || 'Company Applicant Quiz',

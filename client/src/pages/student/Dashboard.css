@@ -344,83 +344,92 @@
 .applications-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-}
-
-.application-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px;
-  background: #111827;
-  border-radius: 16px;
-  border: 1px solid #1f2937;
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
   gap: 16px;
 }
 
+.application-item {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  gap: 20px;
+  align-items: start;
+  padding: 20px;
+  background: linear-gradient(135deg, #111827 0%, #0f172a 100%);
+  border-radius: 14px;
+  border: 1px solid #1f2937;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  transition: all 0.3s ease;
+}
+
 .application-item:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+  border-color: #334155;
+  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.15);
+  transform: translateY(-2px);
 }
 
 .app-info {
   display: flex;
-  gap: 12px;
-  flex: 1;
-  min-width: 0;
+  gap: 14px;
+  grid-column: 1 / 2;
+  min-width: 200px;
 }
 
 .app-icon {
   font-size: 32px;
-  width: 40px;
-  height: 40px;
+  width: 48px;
+  height: 48px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  background: rgba(37, 99, 235, 0.1);
+  border-radius: 10px;
+  border: 1px solid rgba(37, 99, 235, 0.2);
 }
 
 .app-details h4 {
-  font-size: 15px;
-  font-weight: 600;
+  font-size: 16px;
+  font-weight: 700;
   color: #f8fafc;
   margin-bottom: 4px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.4;
 }
 
 .app-details p {
   font-size: 13px;
   color: #94a3b8;
   margin: 0;
+  font-weight: 500;
 }
 
 .app-middle {
   display: flex;
-  gap: 8px;
+  flex-direction: row;
+  gap: 12px;
+  grid-column: 2 / 3;
   align-items: center;
   flex-wrap: wrap;
-  min-width: 150px;
 }
 
 .quiz-badge {
   background: linear-gradient(135deg, #2563eb, #1d4ed8);
   color: #ffffff;
-  padding: 8px 18px;
-  border-radius: 10px;
+  padding: 10px 18px;
+  border-radius: 8px;
   border: none;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  transition: 0.3s ease;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
 }
 
 .take-quiz-btn:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 6px 15px rgba(37, 99, 235, 0.4);
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.4);
+  background: linear-gradient(135deg, #1d4ed8, #1e40af);
 }
 
 .quiz-badge:disabled {
@@ -429,49 +438,132 @@
 }
 
 .quiz-score {
-  background: rgba(148, 163, 184, 0.16);
-  padding: 6px 10px;
-  border-radius: 999px;
-  font-size: 12px;
+  background: rgba(96, 165, 250, 0.15);
+  color: #60a5fa;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 13px;
   font-weight: 600;
+  border: 1px solid rgba(96, 165, 250, 0.2);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .interview-date {
-  color: #8b5cf6;
-  font-size: 12px;
+  color: #c4b5fd;
+  font-size: 13px;
   font-weight: 600;
+  background: rgba(139, 92, 246, 0.1);
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .app-status {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 4px;
-  white-space: nowrap;
+  gap: 8px;
+  grid-column: 4 / 5;
+  justify-self: end;
 }
 
 .status-badge {
-  padding: 6px 14px;
-  border-radius: 999px;
-  font-size: 13px;
-  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
   letter-spacing: 0.5px;
+  text-transform: uppercase;
   white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .status-badge.failed {
   background: rgba(239, 68, 68, 0.15);
   color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
 }
 
 .status-badge.pending {
   background: rgba(245, 158, 11, 0.15);
   color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, 0.3);
 }
 
 .status-badge.awaiting {
   background: rgba(139, 92, 246, 0.15);
   color: #8b5cf6;
+  border: 1px solid rgba(139, 92, 246, 0.3);
+}
+
+.status-badge.status-success {
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.status-badge.status-failure {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.status-badge.status-warning {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.status-badge.status-info {
+  background: rgba(234, 179, 8, 0.15);
+  color: #eab308;
+  border: 1px solid rgba(234, 179, 8, 0.3);
+}
+
+.status-badge.company-quiz-pending {
+  background: rgba(249, 115, 22, 0.15);
+  color: #f97316;
+  border: 1px solid rgba(249, 115, 22, 0.3);
+}
+
+.status-badge.company-quiz-expired {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.app-date {
+  font-size: 12px;
+  color: #64748b;
+  margin: 0;
+  font-weight: 500;
+}
+
+.status-badge.company-quiz-pending {
+  background: rgba(249, 115, 22, 0.15);
+  color: #f97316;
+  border: 1px solid rgba(249, 115, 22, 0.3);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.status-badge.company-quiz-expired {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 11px;
+  font-weight: 700;
 }
 
 .app-date {
@@ -1291,6 +1383,61 @@
 
   .apply-btn {
     width: 100%;
+  }
+
+  .application-item {
+    grid-template-columns: auto 1fr;
+    gap: 16px;
+    padding: 16px;
+  }
+
+  .app-info {
+    grid-column: 1 / -1;
+    min-width: auto;
+  }
+
+  .app-middle {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .app-status {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .status-badge {
+    flex: 1;
+    text-align: center;
+    padding: 6px 12px;
+    font-size: 11px;
+  }
+
+  .app-date {
+    order: -1;
+  }
+
+  .quiz-badge {
+    padding: 8px 14px;
+    font-size: 12px;
+    flex: 1;
+    text-align: center;
+  }
+
+  .quiz-score {
+    font-size: 12px;
+    padding: 6px 10px;
+  }
+
+  .interview-date {
+    font-size: 12px;
+    padding: 4px 8px;
   }
 }
 

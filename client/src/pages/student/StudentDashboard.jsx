@@ -77,6 +77,8 @@ const StudentDashboard = () => {
 
       let applications = [];
       let appliedJobIdsSet = new Set();
+      let companyQuizEndTimeMap = new Map();
+      
       if (appData) {
         const rawApplications = appData.data || [];
         const seenJobIds = new Set();
@@ -88,22 +90,51 @@ const StudentDashboard = () => {
           return true;
         });
 
-        const processed = applications.map((app) => ({
-          id: app._id,
-          jobId: app.jobId?._id,
-          jobTitle: app.jobId?.title || 'Unknown Job',
-          company: getCompanyDisplayName(app.jobId),
-          status: formatApplicationStatus(app.status),
-          statusType: app.status,
-          quizScore: app.quizScore,
-          companyQuizScore: app.companyQuizScore,
-          interviewDate: app.interviewDate,
-          mentorApprovedAt: app.mentorApprovedAt,
-          date: new Date(app.appliedAt).toLocaleDateString('en-US', {
-            month: 'short',
-            day: 'numeric'
-          })
-        }));
+        // Fetch company quizzes to get end times
+        try {
+          const companyQuizzesResponse = await applicationService.getStudentCompanyQuizzes();
+          if (companyQuizzesResponse?.success && Array.isArray(companyQuizzesResponse.data)) {
+            companyQuizzesResponse.data.forEach((quiz) => {
+              if (quiz.jobId && quiz.endTime) {
+                companyQuizEndTimeMap.set(String(quiz.jobId), new Date(quiz.endTime));
+              }
+            });
+          }
+        } catch (err) {
+          console.warn('Error fetching company quizzes:', err);
+        }
+
+        const now = new Date();
+        const processed = applications.map((app) => {
+          let processedApp = {
+            id: app._id,
+            jobId: app.jobId?._id,
+            jobTitle: app.jobId?.title || 'Unknown Job',
+            company: getCompanyDisplayName(app.jobId),
+            status: formatApplicationStatus(app.status),
+            statusType: app.status,
+            quizScore: app.quizScore,
+            companyQuizScore: app.companyQuizScore,
+            interviewDate: app.interviewDate,
+            mentorApprovedAt: app.mentorApprovedAt,
+            date: new Date(app.appliedAt).toLocaleDateString('en-US', {
+              month: 'short',
+              day: 'numeric'
+            })
+          };
+
+          // Check if company quiz is expired
+          if (app.status === 'company_quiz_pending') {
+            const endTime = companyQuizEndTimeMap.get(String(app.jobId?._id));
+            if (endTime && now > endTime) {
+              processedApp.companyQuizScore = 0;
+              processedApp.statusType = 'company_quiz_expired';
+              processedApp.status = 'Quiz Expired';
+            }
+          }
+
+          return processedApp;
+        });
 
         appliedJobIdsSet = new Set(
           applications
@@ -302,6 +333,7 @@ const StudentDashboard = () => {
       'company_quiz_pending': 'Company Quiz Pending',
       'company_quiz_failed': 'Company Quiz Failed',
       'company_quiz_passed': 'Company Quiz Passed',
+      'company_quiz_expired': 'Quiz Expired',
       'shortlisted': 'Shortlisted',
       'interview_scheduled': 'Interview Scheduled',
       'selected': 'Selected',
@@ -320,9 +352,10 @@ const StudentDashboard = () => {
       'pending_mentor': '#f59e0b',
       'mentor_approved': '#10b981',
       'mentor_rejected': '#ef4444',
-      'company_quiz_pending': '#f59e0b',
+      'company_quiz_pending': '#f97316',
       'company_quiz_failed': '#ef4444',
       'company_quiz_passed': '#10b981',
+      'company_quiz_expired': '#ef4444',
       'shortlisted': '#3b82f6',
       'interview_scheduled': '#8b5cf6',
       'selected': '#10b981',
@@ -344,6 +377,7 @@ const StudentDashboard = () => {
       'company_quiz_pending': '#fef3c7',
       'company_quiz_failed': '#fee2e2',
       'company_quiz_passed': '#d1fae5',
+      'company_quiz_expired': '#fee2e2',
       'shortlisted': '#dbeafe',
       'interview_scheduled': '#ede9fe',
       'selected': '#d1fae5',
@@ -368,7 +402,8 @@ const StudentDashboard = () => {
     if (statusType === 'quiz_pending') return 'pending';
     if (statusType === 'pending_mentor') return 'awaiting';
     if (statusType === 'company_quiz_failed') return 'failed';
-    if (statusType === 'company_quiz_pending') return 'pending';
+    if (statusType === 'company_quiz_pending') return 'company-quiz-pending';
+    if (statusType === 'company_quiz_expired') return 'company-quiz-expired';
     return '';
   };
 
@@ -598,13 +633,13 @@ const StudentDashboard = () => {
                       </div>
                     </div>
                     <div className="app-middle">
-                      {(app.statusType === 'quiz_pending' || app.statusType === 'company_quiz_pending') && (
+                      {(app.statusType === 'quiz_pending') && (
                         <button
                           type="button"
                           className="quiz-badge take-quiz-btn"
                           onClick={() => handleTakeQuiz(app.id)}
                         >
-                          {app.statusType === 'company_quiz_pending' ? 'Take Company Quiz →' : 'Take Quiz →'}
+                          Take Quiz →
                         </button>
                       )}
                       {app.quizScore !== undefined && app.quizScore !== null && (
@@ -612,7 +647,11 @@ const StudentDashboard = () => {
                           Score: {app.quizScore}%
                         </span>
                       )}
-                      {app.companyQuizScore !== undefined && app.companyQuizScore !== null && (
+                      {app.statusType === 'company_quiz_expired' ? (
+                        <span className="quiz-score" style={{ color: '#ef4444', fontWeight: '600' }}>
+                          Quiz Expired: 0%
+                        </span>
+                      ) : app.companyQuizScore !== undefined && app.companyQuizScore !== null && (
                         <span className="quiz-score" style={{ color: getScoreColor(app.companyQuizScore) }}>
                           Company Quiz: {app.companyQuizScore}%
                         </span>

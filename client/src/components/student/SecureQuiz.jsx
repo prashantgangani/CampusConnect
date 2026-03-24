@@ -18,7 +18,7 @@ const SecureQuiz = ({
   const [violationCount, setViolationCount] = useState(0);
   const [isFullscreenActive, setIsFullscreenActive] = useState(false);
   const [showWarningModal, setShowWarningModal] = useState(false);
-  const [warningMessage, setWarningMessage] = useState('');
+  const [warningData, setWarningData] = useState({ title: '', message: '', violationType: '' });
   const [isSubmitted, setIsSubmitted] = useState(false);
   const fullscreenRef = useRef(null);
   const listenersAddedRef = useRef(false);
@@ -52,9 +52,13 @@ const SecureQuiz = ({
       
       if (newCount < 3) {
         // First or second violation: Show warning
-        setWarningMessage(
-          `⚠️ ${violationMessage}\\n\\nWarning ${newCount}/2\\n\\nYou have ${3 - newCount} more attempt(s) remaining.`
-        );
+        setWarningData({
+          title: 'Anti-Cheat Warning',
+          message: violationMessage,
+          violationType: violationType,
+          violationCount: newCount,
+          attemptsRemaining: 3 - newCount
+        });
         setShowWarningModal(true);
       } else if (newCount === 3) {
         // Third violation: Auto-submit immediately
@@ -457,10 +461,20 @@ const SecureQuiz = ({
           <div className="secure-quiz-warning-overlay">
             <div className="secure-quiz-warning-modal">
               <div className="secure-quiz-warning-icon">⚠️</div>
-              <h3>Anti-Cheat Warning</h3>
-              <p style={{ whiteSpace: 'pre-line' }}>
-                {warningMessage}
-              </p>
+              <h3>{warningData.title}</h3>
+              <div className="secure-quiz-warning-content">
+                <p className="warning-message">{warningData.message}</p>
+                <div className="warning-stats">
+                  <div className="warning-stat">
+                    <span className="stat-label">Warning</span>
+                    <span className="stat-value">{warningData.violationCount}/2</span>
+                  </div>
+                  <div className="warning-stat">
+                    <span className="stat-label">Attempts Remaining</span>
+                    <span className="stat-value">{warningData.attemptsRemaining}</span>
+                  </div>
+                </div>
+              </div>
               <button
                 type="button"
                 className="secure-quiz-warning-ok"
