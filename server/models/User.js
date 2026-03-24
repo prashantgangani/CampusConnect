@@ -36,6 +36,21 @@ const userSchema = new mongoose.Schema({
   college: {
     type: String,
     trim: true
+  },
+  placementCell: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
+  },
+  placementCellEmail: {
+    type: String,
+    trim: true,
+    lowercase: true,
+    default: ''
+  },
+  placementCellAssignedAt: {
+    type: Date,
+    default: null
   }
 }, {
   timestamps: true

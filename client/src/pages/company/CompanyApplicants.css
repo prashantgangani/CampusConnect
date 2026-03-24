@@ -1,0 +1,344 @@
+.company-applicants-root .full-width-section {
+  width: 100%;
+}
+
+.company-applicants-root .applicants-message {
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.company-applicants-root .applicants-message.success {
+  background: #dcfce7;
+  border: 1px solid #86efac;
+  color: #166534;
+}
+
+.company-applicants-root .applicants-card {
+  background: #111827;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  padding: 18px;
+  box-shadow: 0 10px 24px rgba(2, 6, 23, 0.35);
+}
+
+.company-applicants-root .applicants-title {
+  margin: 0 0 12px;
+  color: #f8fafc;
+}
+
+.company-applicants-root .approved-list {
+  max-height: 620px;
+  overflow-y: auto;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 10px;
+}
+
+.company-applicants-root .approved-item {
+  border: 1px solid #334155;
+  border-radius: 10px;
+  background: #0f172a;
+  padding: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.company-applicants-root .approved-job-title {
+  font-weight: 700;
+  color: #f8fafc;
+}
+
+.company-applicants-root .approved-subline {
+  color: #94a3b8;
+  font-size: 12px;
+}
+
+.company-applicants-root .approved-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.company-applicants-root .profile-btn-small,
+.company-applicants-root .reject-btn-small,
+.company-applicants-root .hire-btn-small {
+  border: none;
+  border-radius: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.company-applicants-root .profile-btn-small {
+  background: #0369a1;
+  color: #ffffff;
+}
+
+.company-applicants-root .profile-btn-small:hover {
+  background: #075985;
+}
+
+.company-applicants-root .reject-btn-small {
+  background: #b91c1c;
+  color: #ffffff;
+}
+
+.company-applicants-root .reject-btn-small:hover {
+  background: #991b1b;
+}
+
+.company-applicants-root .hire-btn-small {
+  background: #166534;
+  color: #ffffff;
+}
+
+.company-applicants-root .hire-btn-small:hover {
+  background: #14532d;
+}
+
+.company-applicants-root .hire-btn-small:disabled,
+.company-applicants-root .profile-btn-small:disabled,
+.company-applicants-root .reject-btn-small:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.company-applicants-root .quiz-upload-card {
+  margin-bottom: 14px;
+}
+
+.company-applicants-root .quiz-upload-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.company-applicants-root .quiz-upload-grid label,
+.company-applicants-root .quiz-upload-block,
+.company-applicants-root .quiz-question-bottom label {
+  display: grid;
+  gap: 6px;
+  color: #cbd5e1;
+  font-size: 13px;
+}
+
+.company-applicants-root .quiz-upload-grid input,
+.company-applicants-root .quiz-upload-grid select,
+.company-applicants-root .quiz-upload-block input,
+.company-applicants-root .quiz-upload-block textarea,
+.company-applicants-root .quiz-question-item input,
+.company-applicants-root .quiz-question-item select,
+.company-applicants-root .quiz-question-bottom input {
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: #0b1220;
+  color: #f8fafc;
+}
+
+.company-applicants-root .quiz-upload-block {
+  margin-bottom: 12px;
+}
+
+.company-applicants-root .quiz-question-list {
+  display: grid;
+  gap: 10px;
+}
+
+.company-applicants-root .quiz-question-item {
+  border: 1px solid #334155;
+  border-radius: 10px;
+  background: #0f172a;
+  padding: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.company-applicants-root .quiz-question-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.company-applicants-root .quiz-question-top h4 {
+  margin: 0;
+  color: #f8fafc;
+  font-size: 14px;
+}
+
+.company-applicants-root .quiz-link-btn {
+  border: none;
+  background: transparent;
+  color: #38bdf8;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.company-applicants-root .quiz-options-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.company-applicants-root .quiz-question-bottom {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 10px;
+}
+
+.company-applicants-root .quiz-upload-actions {
+  margin-top: 12px;
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.company-applicants-root .passed-applicants-card {
+  margin-top: 14px;
+}
+
+.company-applicants-root .applicants-muted {
+  color: #94a3b8;
+}
+
+.company-applicants-root .applicants-error {
+  color: #f87171;
+}
+
+.company-applicants-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.55);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  padding: 16px;
+}
+
+.company-applicants-modal {
+  background: #1f2937;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  padding: 20px;
+  max-width: 900px;
+  max-height: 86vh;
+  overflow-y: auto;
+  width: min(92vw, 900px);
+  color: #f8fafc;
+}
+
+.company-applicants-modal-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.company-applicants-modal-head h2 {
+  margin: 0;
+}
+
+.company-applicants-close {
+  background: none;
+  border: none;
+  color: #f8fafc;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.company-applicants-section {
+  margin-bottom: 18px;
+}
+
+.company-applicants-section h3 {
+  color: #38bdf8;
+  margin: 0 0 10px;
+}
+
+.company-applicants-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.company-applicants-skills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.company-applicants-skill {
+  background: #374151;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.company-applicants-links {
+  display: grid;
+  gap: 7px;
+}
+
+.company-applicants-link-row {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+
+.company-applicants-link-row a {
+  color: #38bdf8;
+  text-decoration: none;
+  word-break: break-all;
+}
+
+.company-applicants-link-row a:hover {
+  text-decoration: underline;
+}
+
+.company-applicants-resume-btn {
+  background: none;
+  border: none;
+  color: #38bdf8;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+}
+
+@media (max-width: 768px) {
+  .company-applicants-root .approved-item {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .company-applicants-root .approved-actions {
+    width: 100%;
+  }
+
+  .company-applicants-root .profile-btn-small,
+  .company-applicants-root .reject-btn-small,
+  .company-applicants-root .hire-btn-small {
+    flex: 1;
+  }
+
+  .company-applicants-root .quiz-options-grid,
+  .company-applicants-root .quiz-question-bottom {
+    grid-template-columns: 1fr;
+  }
+
+  .company-applicants-root .quiz-upload-actions {
+    flex-direction: column;
+  }
+
+  .company-applicants-grid {
+    grid-template-columns: 1fr;
+  }
+}

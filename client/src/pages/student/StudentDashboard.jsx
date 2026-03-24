@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import jobService from '../../services/jobService';
 import applicationService from '../../services/applicationService';
 import api from '../../services/api';
-import SecureQuiz from '../../components/student/SecureQuiz';
 import './Dashboard.css';
 
 const StudentDashboard = () => {
@@ -28,17 +27,6 @@ const StudentDashboard = () => {
   const [missingProfileItems, setMissingProfileItems] = useState([]);
   const [studentProfile, setStudentProfile] = useState(null);
   const [uiMessage, setUiMessage] = useState(null);
-  const [secureQuizOpen, setSecureQuizOpen] = useState(false);
-  const [secureQuizLoading, setSecureQuizLoading] = useState(false);
-  const [secureQuizApplicationId, setSecureQuizApplicationId] = useState(null);
-  const [secureQuizQuestions, setSecureQuizQuestions] = useState([]);
-  const [quizResultModal, setQuizResultModal] = useState({
-    open: false,
-    passed: false,
-    percentage: 0,
-    text: '',
-    applicationId: null
-  });
   const [infoModal, setInfoModal] = useState({
     open: false,
     title: '',
@@ -108,6 +96,7 @@ const StudentDashboard = () => {
           status: formatApplicationStatus(app.status),
           statusType: app.status,
           quizScore: app.quizScore,
+          companyQuizScore: app.companyQuizScore,
           interviewDate: app.interviewDate,
           mentorApprovedAt: app.mentorApprovedAt,
           date: new Date(app.appliedAt).toLocaleDateString('en-US', {
@@ -284,94 +273,15 @@ const StudentDashboard = () => {
   };
 
   const handleTakeQuiz = async (applicationId) => {
-    try {
-      if (!applicationId) {
-        setUiMessage({
-          type: 'error',
-          text: 'Quiz is not available for this application right now. Please refresh and try again.'
-        });
-        return;
-      }
-
-      setUiMessage(null);
-      setSecureQuizLoading(true);
-      setSecureQuizOpen(true);
-      setSecureQuizApplicationId(applicationId);
-
-      const quizStartResponse = await applicationService.startQuiz(applicationId);
-      const questions = quizStartResponse.questions || [];
-
-      if (!questions.length) {
-        setSecureQuizOpen(false);
-        setUiMessage({
-          type: 'error',
-          text: 'Quiz questions are not available right now. Please try again in a moment.'
-        });
-        return;
-      }
-
-      setSecureQuizQuestions(questions);
-    } catch (error) {
-      console.error('Error taking quiz:', error);
-      setSecureQuizOpen(false);
+    if (!applicationId) {
       setUiMessage({
         type: 'error',
-        text: getErrorMessage(error, 'Unable to start quiz right now. Please try again.')
+        text: 'Quiz is not available for this application right now. Please refresh and try again.'
       });
-    } finally {
-      setSecureQuizLoading(false);
-    }
-  };
-
-  const handleSecureQuizClose = () => {
-    setSecureQuizOpen(false);
-    setSecureQuizLoading(false);
-    setSecureQuizQuestions([]);
-    setSecureQuizApplicationId(null);
-  };
-
-  const handleSecureQuizSubmitSuccess = (result) => {
-    const resultText = result.passed
-      ? `Quiz completed successfully! You scored ${result.percentage}%. Your application is sent to mentor for verification.`
-      : `Quiz completed. You scored ${result.percentage}%. You did not reach the passing score.`;
-
-    setQuizResultModal({
-      open: true,
-      passed: !!result.passed,
-      percentage: result.percentage || 0,
-      text: resultText,
-      applicationId: secureQuizApplicationId
-    });
-
-    fetchDashboardData(false);
-  };
-
-  const handleQuizResultOk = () => {
-    const statusType = quizResultModal.passed ? 'pending_mentor' : 'quiz_failed';
-
-    if (quizResultModal.applicationId) {
-      setRecentApplications((prev) =>
-        prev.map((application) =>
-          application.id === quizResultModal.applicationId
-            ? {
-                ...application,
-                statusType,
-                status: formatApplicationStatus(statusType),
-                quizScore: quizResultModal.percentage
-              }
-            : application
-        )
-      );
+      return;
     }
 
-    setQuizResultModal({
-      open: false,
-      passed: false,
-      percentage: 0,
-      text: '',
-      applicationId: null
-    });
-    fetchDashboardData(false);
+    navigate(`/student/quiz-notice/${applicationId}`);
   };
 
   const handleInfoModalOk = () => {
@@ -389,6 +299,9 @@ const StudentDashboard = () => {
       'pending_mentor': 'Awaiting Mentor',
       'mentor_approved': 'Mentor Approved',
       'mentor_rejected': 'Mentor Rejected',
+      'company_quiz_pending': 'Company Quiz Pending',
+      'company_quiz_failed': 'Company Quiz Failed',
+      'company_quiz_passed': 'Company Quiz Passed',
       'shortlisted': 'Shortlisted',
       'interview_scheduled': 'Interview Scheduled',
       'selected': 'Selected',
@@ -407,6 +320,9 @@ const StudentDashboard = () => {
       'pending_mentor': '#f59e0b',
       'mentor_approved': '#10b981',
       'mentor_rejected': '#ef4444',
+      'company_quiz_pending': '#f59e0b',
+      'company_quiz_failed': '#ef4444',
+      'company_quiz_passed': '#10b981',
       'shortlisted': '#3b82f6',
       'interview_scheduled': '#8b5cf6',
       'selected': '#10b981',
@@ -425,6 +341,9 @@ const StudentDashboard = () => {
       'pending_mentor': '#fef3c7',
       'mentor_approved': '#d1fae5',
       'mentor_rejected': '#fee2e2',
+      'company_quiz_pending': '#fef3c7',
+      'company_quiz_failed': '#fee2e2',
+      'company_quiz_passed': '#d1fae5',
       'shortlisted': '#dbeafe',
       'interview_scheduled': '#ede9fe',
       'selected': '#d1fae5',
@@ -448,6 +367,8 @@ const StudentDashboard = () => {
     if (statusType === 'quiz_failed') return 'failed';
     if (statusType === 'quiz_pending') return 'pending';
     if (statusType === 'pending_mentor') return 'awaiting';
+    if (statusType === 'company_quiz_failed') return 'failed';
+    if (statusType === 'company_quiz_pending') return 'pending';
     return '';
   };
 
@@ -675,19 +596,23 @@ const StudentDashboard = () => {
                       </div>
                     </div>
                     <div className="app-middle">
-                      {app.statusType === 'quiz_pending' && (
+                      {(app.statusType === 'quiz_pending' || app.statusType === 'company_quiz_pending') && (
                         <button
                           type="button"
                           className="quiz-badge take-quiz-btn"
-                          disabled={secureQuizLoading}
                           onClick={() => handleTakeQuiz(app.id)}
                         >
-                          Take Quiz →
+                          {app.statusType === 'company_quiz_pending' ? 'Take Company Quiz →' : 'Take Quiz →'}
                         </button>
                       )}
                       {app.quizScore !== undefined && app.quizScore !== null && (
                         <span className="quiz-score" style={{ color: getScoreColor(app.quizScore) }}>
                           Score: {app.quizScore}%
+                        </span>
+                      )}
+                      {app.companyQuizScore !== undefined && app.companyQuizScore !== null && (
+                        <span className="quiz-score" style={{ color: getScoreColor(app.companyQuizScore) }}>
+                          Company Quiz: {app.companyQuizScore}%
                         </span>
                       )}
                       {app.interviewDate && (
@@ -843,34 +768,6 @@ const StudentDashboard = () => {
           </div>
         </div>
       </div>
-
-      {/* Secure Fullscreen Quiz Component */}
-      <SecureQuiz
-        isOpen={secureQuizOpen}
-        applicationId={secureQuizApplicationId}
-        questions={secureQuizQuestions}
-        loading={secureQuizLoading}
-        onClose={handleSecureQuizClose}
-        onSubmitSuccess={handleSecureQuizSubmitSuccess}
-      />
-
-      {quizResultModal.open && (
-        <div className="quiz-result-overlay">
-          <div className="quiz-result-modal">
-            <div className={`quiz-result-icon ${quizResultModal.passed ? 'result-pass' : 'result-fail'}`}>
-              {quizResultModal.passed ? '✅' : '❌'}
-            </div>
-            <h3 className="quiz-result-title">
-              {quizResultModal.passed ? 'Quiz Passed' : 'Quiz Failed'}
-            </h3>
-            <p className="quiz-result-score">Score: {quizResultModal.percentage}%</p>
-            <p className="quiz-result-text">{quizResultModal.text}</p>
-            <button type="button" className="quiz-result-ok" onClick={handleQuizResultOk}>
-              OK
-            </button>
-          </div>
-        </div>
-      )}
 
       {infoModal.open && (
         <div className="quiz-result-overlay">

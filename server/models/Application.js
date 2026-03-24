@@ -13,7 +13,7 @@ const applicationSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['quiz_pending', 'quiz_failed', 'pending_mentor', 'mentor_approved', 'mentor_rejected', 'shortlisted', 'interview_scheduled', 'selected', 'rejected', 'offer_made', 'offer_accepted'],
+    enum: ['quiz_pending', 'quiz_failed', 'pending_mentor', 'mentor_approved', 'mentor_rejected', 'company_quiz_pending', 'company_quiz_failed', 'company_quiz_passed', 'shortlisted', 'interview_scheduled', 'selected', 'rejected', 'offer_made', 'offer_accepted'],
     default: 'quiz_pending'
   },
   quizScore: {
@@ -22,6 +22,14 @@ const applicationSchema = new mongoose.Schema({
     max: 100
   },
   quizAttemptedAt: {
+    type: Date
+  },
+  companyQuizScore: {
+    type: Number,
+    min: 0,
+    max: 100
+  },
+  companyQuizAttemptedAt: {
     type: Date
   },
   quizQuestionIds: [{

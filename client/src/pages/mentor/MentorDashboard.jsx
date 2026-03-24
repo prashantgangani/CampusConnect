@@ -205,6 +205,9 @@ const MentorDashboard = () => {
           <button onClick={() => navigate('/mentor/approvals')} className="mentor-logout-btn">
             Requests
           </button>
+          <button onClick={() => navigate('/mentor/profile')} className="mentor-logout-btn">
+            Profile
+          </button>
           <button onClick={handleLogout} className="mentor-logout-btn mentor-logout-danger">Logout</button>
         </div>
       </div>

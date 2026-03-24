@@ -1,48 +1,81 @@
-.post-job-container {
+.post-job-theme-root {
   min-height: 100vh;
-  background: #f9fafb;
-  padding: 40px 20px;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
+  background: linear-gradient(135deg, #0b1220 0%, #0f172a 45%, #172554 100%);
+  color: #e2e8f0;
+}
+
+.post-job-theme-root .dashboard-header {
+  background: rgba(15, 23, 42, 0.92);
+  border-bottom: 1px solid #334155;
+  box-shadow: none;
+  backdrop-filter: blur(8px);
+}
+
+.post-job-theme-root .logo-section,
+.post-job-theme-root .logo-text {
+  color: #f8fafc;
+}
+
+.post-job-theme-root .profile-btn,
+.post-job-theme-root .logout-btn {
+  border: 1px solid #334155;
+  background: #111827;
+  color: #f8fafc;
+}
+
+.post-job-theme-root .profile-btn:hover {
+  background: #1f2937;
+  border-color: #475569;
+}
+
+.post-job-theme-root .logout-btn:hover {
+  background: #dc2626;
+  border-color: #dc2626;
+  color: #ffffff;
+}
+
+.post-job-theme-root .welcome-section {
+  background: transparent;
+  border-bottom: 1px solid #334155;
+}
+
+.post-job-theme-root .welcome-section h1 {
+  color: #f8fafc;
+}
+
+.post-job-theme-root .welcome-section p {
+  color: #94a3b8;
+}
+
+.post-job-content-wrap {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px 40px 32px;
 }
 
 .post-job-card {
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-  padding: 40px;
-  width: 100%;
-  max-width: 800px;
-  animation: fadeIn 0.5s ease-in;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(-20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  background: #111827;
+  border: 1px solid #334155;
+  border-radius: 14px;
+  box-shadow: 0 18px 34px rgba(2, 6, 23, 0.45);
+  padding: 28px;
 }
 
 .post-job-header {
-  text-align: center;
-  margin-bottom: 30px;
+  margin-bottom: 20px;
 }
 
-.post-job-header h1 {
-  color: #111827;
-  font-size: 32px;
+.post-job-header h2 {
+  color: #f8fafc;
+  font-size: 28px;
   font-weight: 700;
-  margin-bottom: 8px;
+  margin: 0;
 }
 
 .post-job-header p {
-  color: #6b7280;
-  font-size: 16px;
+  color: #94a3b8;
+  font-size: 14px;
+  margin: 8px 0 0;
 }
 
 .message {
@@ -96,7 +129,7 @@
 }
 
 .form-group label {
-  color: #374151;
+  color: #cbd5e1;
   font-size: 14px;
   font-weight: 600;
 }
@@ -105,27 +138,26 @@
 .form-group select,
 .form-group textarea {
   padding: 12px 16px;
-  border: 2px solid #e5e7eb;
+  border: 1px solid #334155;
   border-radius: 8px;
   font-size: 14px;
   transition: all 0.2s ease;
   outline: none;
-  color: #111827;
-  background: #f9fafb;
+  color: #e2e8f0;
+  background: #0f172a;
   font-family: inherit;
 }
 
 .form-group input:focus,
 .form-group select:focus,
 .form-group textarea:focus {
-  border-color: #14b8a6;
-  background: white;
-  box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.1);
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2);
 }
 
 .form-group input::placeholder,
 .form-group textarea::placeholder {
-  color: #9ca3af;
+  color: #64748b;
 }
 
 .form-group textarea {
@@ -143,13 +175,13 @@
   justify-content: flex-end;
   margin-top: 32px;
   padding-top: 24px;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid #334155;
 }
 
 .cancel-btn {
-  background: #f3f4f6;
-  color: #374151;
-  border: 2px solid #d1d5db;
+  background: #1f2937;
+  color: #e2e8f0;
+  border: 1px solid #334155;
   padding: 12px 24px;
   border-radius: 8px;
   font-size: 14px;
@@ -159,12 +191,12 @@
 }
 
 .cancel-btn:hover {
-  background: #e5e7eb;
-  border-color: #9ca3af;
+  background: #334155;
+  border-color: #475569;
 }
 
 .submit-btn {
-  background: #14b8a6;
+  background: #1d4ed8;
   color: white;
   border: none;
   padding: 12px 24px;
@@ -176,9 +208,9 @@
 }
 
 .submit-btn:hover:not(:disabled) {
-  background: #0d9488;
+  background: #1e40af;
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(20, 184, 166, 0.3);
+  box-shadow: 0 8px 16px rgba(30, 64, 175, 0.35);
 }
 
 .submit-btn:active:not(:disabled) {
@@ -188,20 +220,143 @@
 .submit-btn:disabled {
   opacity: 0.7;
   cursor: not-allowed;
-  cursor: not-allowed;
+}
+
+.quiz-builder-section {
+  margin-top: 8px;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  background: #0f172a;
+  padding: 14px;
+}
+
+.quiz-builder-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.quiz-builder-header label {
+  margin: 0;
+  color: #e2e8f0;
+  font-weight: 700;
+}
+
+.quiz-builder-header p {
+  margin: 4px 0 0;
+  color: #94a3b8;
+  font-size: 12px;
+}
+
+.quiz-add-btn {
+  border: none;
+  background: #0ea5e9;
+  color: #ffffff;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.quiz-add-btn:hover {
+  background: #0284c7;
+}
+
+.quiz-empty-text {
+  margin: 0;
+  color: #94a3b8;
+}
+
+.quiz-question-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.quiz-question-card {
+  border: 1px solid #334155;
+  border-radius: 10px;
+  background: #111827;
+  padding: 12px;
+}
+
+.quiz-question-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.quiz-question-top strong {
+  color: #f8fafc;
+}
+
+.quiz-remove-btn {
+  border: none;
+  background: #7f1d1d;
+  color: #ffffff;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.quiz-remove-btn:hover {
+  background: #991b1b;
+}
+
+.quiz-question-input {
+  margin-bottom: 10px;
+}
+
+.quiz-options-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.quiz-option-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.quiz-correct-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #cbd5e1;
+  font-size: 13px;
+}
+
+.quiz-correct-label input {
+  margin: 0;
+}
+
+.quiz-marks-row {
+  margin-top: 10px;
+  max-width: 140px;
+  display: grid;
+  gap: 6px;
+}
+
+.quiz-marks-row label {
+  color: #cbd5e1;
+  font-size: 13px;
 }
 
 /* Responsive Design */
 @media (max-width: 768px) {
-  .post-job-container {
-    padding: 20px 10px;
+  .post-job-content-wrap {
+    padding: 14px;
   }
 
   .post-job-card {
     padding: 24px;
   }
 
-  .post-job-header h1 {
+  .post-job-header h2 {
     font-size: 24px;
   }
 
@@ -218,6 +373,19 @@
   .submit-btn {
     width: 100%;
   }
+
+  .quiz-builder-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .quiz-add-btn {
+    width: 100%;
+  }
+
+  .quiz-option-row {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 480px) {
@@ -225,7 +393,7 @@
     padding: 20px;
   }
 
-  .post-job-header h1 {
+  .post-job-header h2 {
     font-size: 20px;
   }
 }

@@ -5,7 +5,10 @@ import {
 	getRecentSuggestions,
 	getSuggestionsTotal,
 	getPendingMentorRequests,
-	reviewMentorRequest
+	reviewMentorRequest,
+	getMentorProfile,
+	searchPlacementCells,
+	assignPlacementCellByEmail
 } from '../controllers/mentorController.js';
 import {
   getMentorAwaitingApplications,
@@ -25,6 +28,9 @@ router.get('/suggestions/recent', getRecentSuggestions);
 router.get('/suggestions/total', getSuggestionsTotal);
 router.get('/requests/pending', getPendingMentorRequests);
 router.post('/review-request', reviewMentorRequest);
+router.get('/profile', getMentorProfile);
+router.get('/search-placement-cells', searchPlacementCells);
+router.post('/assign-placement-cell', assignPlacementCellByEmail);
 router.get('/applications/awaiting', getMentorAwaitingApplications);
 router.patch('/applications/:id/approve', approveApplicationByMentor);
 router.patch('/applications/:id/reject', rejectApplicationByMentor);

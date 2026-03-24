@@ -277,3 +277,127 @@ export const reviewMentorRequest = async (req, res) => {
 		});
 	}
 };
+
+export const getMentorProfile = async (req, res) => {
+	try {
+		const mentor = await User.findById(req.user._id)
+			.select('name email role institution department college placementCell placementCellEmail placementCellAssignedAt')
+			.populate('placementCell', 'name email institution department college role');
+
+		if (!mentor) {
+			return res.status(404).json({
+				success: false,
+				message: 'Mentor profile not found'
+			});
+		}
+
+		return res.status(200).json({
+			success: true,
+			profile: mentor
+		});
+	} catch (error) {
+		console.error('Error fetching mentor profile:', error);
+		return res.status(500).json({
+			success: false,
+			message: 'Failed to fetch mentor profile',
+			error: error.message
+		});
+	}
+};
+
+export const searchPlacementCells = async (req, res) => {
+	try {
+		const query = (req.query.q || '').trim().toLowerCase();
+
+		if (query.length < 3) {
+			return res.status(400).json({
+				success: false,
+				message: 'Search query must be at least 3 characters'
+			});
+		}
+
+		const placementCells = await User.find({
+			role: 'placement',
+			$or: [
+				{ email: { $regex: query, $options: 'i' } },
+				{ name: { $regex: query, $options: 'i' } }
+			]
+		})
+			.select('_id name email institution department college')
+			.limit(10)
+			.lean();
+
+		return res.status(200).json({
+			success: true,
+			placementCells
+		});
+	} catch (error) {
+		console.error('Error searching placement cells:', error);
+		return res.status(500).json({
+			success: false,
+			message: 'Failed to search placement cells',
+			error: error.message
+		});
+	}
+};
+
+export const assignPlacementCellByEmail = async (req, res) => {
+	try {
+		const placementEmail = (req.body.placementEmail || '').trim().toLowerCase();
+
+		if (!placementEmail) {
+			return res.status(400).json({
+				success: false,
+				message: 'Placement cell email is required'
+			});
+		}
+
+		const placementCell = await User.findOne({
+			email: placementEmail,
+			role: 'placement'
+		}).select('_id name email institution department college role');
+
+		if (!placementCell) {
+			return res.status(404).json({
+				success: false,
+				message: 'No placement cell account found with this email'
+			});
+		}
+
+		const updatedMentor = await User.findByIdAndUpdate(
+			req.user._id,
+			{
+				$set: {
+					placementCell: placementCell._id,
+					placementCellEmail: placementCell.email,
+					placementCellAssignedAt: new Date()
+				}
+			},
+			{
+				new: true,
+				runValidators: true,
+				select: 'name email role institution department college placementCell placementCellEmail placementCellAssignedAt'
+			}
+		).populate('placementCell', 'name email institution department college role');
+
+		if (!updatedMentor) {
+			return res.status(404).json({
+				success: false,
+				message: 'Mentor profile not found'
+			});
+		}
+
+		return res.status(200).json({
+			success: true,
+			message: 'Placement cell selected successfully',
+			profile: updatedMentor
+		});
+	} catch (error) {
+		console.error('Error assigning placement cell:', error);
+		return res.status(500).json({
+			success: false,
+			message: 'Failed to assign placement cell',
+			error: error.message
+		});
+	}
+};

@@ -1,17 +1,20 @@
 import mongoose from 'mongoose';
 
-const quizQuestionSchema = new mongoose.Schema({
+const applicantQuizQuestionSchema = new mongoose.Schema({
   question: {
     type: String,
-    required: true
+    required: true,
+    trim: true
   },
   options: [{
     type: String,
-    required: true
+    required: true,
+    trim: true
   }],
   correctAnswer: {
     type: String,
     required: true,
+    trim: true,
     validate: {
       validator: function validator(value) {
         return Array.isArray(this.options) && this.options.includes(value);
@@ -21,11 +24,12 @@ const quizQuestionSchema = new mongoose.Schema({
   },
   marks: {
     type: Number,
-    default: 1
+    default: 1,
+    min: 1
   }
-});
+}, { _id: true });
 
-const quizSchema = new mongoose.Schema({
+const companyApplicantQuizSchema = new mongoose.Schema({
   jobId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Job',
@@ -34,32 +38,39 @@ const quizSchema = new mongoose.Schema({
   },
   title: {
     type: String,
-    default: 'Screening Quiz'
+    default: 'Company Round Quiz',
+    trim: true
   },
   description: {
-    type: String
+    type: String,
+    trim: true,
+    default: ''
   },
-  questions: [quizQuestionSchema],
+  questions: [applicantQuizQuestionSchema],
   totalMarks: {
     type: Number,
-    default: 0
+    default: 0,
+    min: 0
   },
   passingPercentage: {
     type: Number,
-    default: 70
+    default: 70,
+    min: 1,
+    max: 100
   },
   timeLimit: {
-    type: Number, // in minutes
-    default: 30
+    type: Number,
+    default: 30,
+    min: 1
   },
-  createdAt: {
+  quizDeadline: {
     type: Date,
-    default: Date.now
+    required: true
   }
 }, {
   timestamps: true
 });
 
-const Quiz = mongoose.model('Quiz', quizSchema);
+const CompanyApplicantQuiz = mongoose.model('CompanyApplicantQuiz', companyApplicantQuizSchema);
 
-export default Quiz;
+export default CompanyApplicantQuiz;

@@ -10,7 +10,10 @@ import {
   getMentorAwaitingApplications,
   approveApplicationByMentor,
   rejectApplicationByMentor,
-  getCompanyApprovedApplications
+  getCompanyApprovedApplications,
+  rejectApplicationByCompany,
+  upsertCompanyApplicantQuiz,
+  hireApplicationByCompany
 } from '../controllers/applicationController.js';
 import { getStudentProfileForCompany } from '../controllers/studentController.js';
 import { protect, authorize } from '../middlewares/authMiddleware.js';
@@ -27,6 +30,9 @@ router.patch('/:id/reject', authorize('mentor'), rejectApplicationByMentor);
 
 // Company route for mentor-approved applications
 router.get('/company/approved', authorize('company'), getCompanyApprovedApplications);
+router.put('/company/jobs/:jobId/quiz', authorize('company'), upsertCompanyApplicantQuiz);
+router.patch('/company/:id/hire', authorize('company'), hireApplicationByCompany);
+router.patch('/company/:id/reject', authorize('company'), rejectApplicationByCompany);
 
 // Company route to view student profile (only for approved applications)
 router.get('/student/:studentId/profile', authorize('company'), getStudentProfileForCompany);

@@ -34,10 +34,30 @@ const jobService = {
     }
   },
 
+  // Get all placement cells available for targeting a job
+  getPlacementCells: async () => {
+    try {
+      const response = await api.get('/jobs/placement-cells');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+
   // Get company-specific dashboard stats
   getCompanyStats: async () => {
     try {
       const response = await api.get('/jobs/company/stats');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+
+  // Get company reports with job-level analytics
+  getCompanyReports: async () => {
+    try {
+      const response = await api.get('/jobs/company/reports');
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;
@@ -58,6 +78,33 @@ const jobService = {
   getCompanyApprovedApplicants: async () => {
     try {
       const response = await api.get('/applications/company/approved');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+
+  rejectCompanyApplicant: async (applicationId) => {
+    try {
+      const response = await api.patch(`/applications/company/${applicationId}/reject`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+
+  uploadCompanyApplicantQuiz: async (jobId, quizData) => {
+    try {
+      const response = await api.put(`/applications/company/jobs/${jobId}/quiz`, quizData);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+
+  hireCompanyApplicant: async (applicationId) => {
+    try {
+      const response = await api.patch(`/applications/company/${applicationId}/hire`);
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;
@@ -90,6 +137,26 @@ const jobService = {
       const response = await api.put(`/jobs/${jobId}`, jobData);
       // Emit event for all other components to refresh
       notificationService.emit(NOTIFICATION_EVENTS.JOB_UPDATED, response.data.job);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+
+  // Get quiz for a company-owned job
+  getJobQuiz: async (jobId) => {
+    try {
+      const response = await api.get(`/jobs/${jobId}/quiz`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+
+  // Create/update quiz for a company-owned job
+  upsertJobQuiz: async (jobId, quizData) => {
+    try {
+      const response = await api.put(`/jobs/${jobId}/quiz`, quizData);
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;

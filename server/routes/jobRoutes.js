@@ -3,12 +3,17 @@ import {
   createJob,
   getAllJobs,
   getJobsByCompany,
+  getCompanyStats,
+  getCompanyReports,
   getJobById,
   updateJob,
   deleteJob,
   getPendingJobs,
   approveJob,
-  rejectJob
+  rejectJob,
+  getCompanyJobQuiz,
+  upsertCompanyJobQuiz,
+  getPlacementCellsForCompany
 } from '../controllers/jobController.js';
 import { protect, authorize } from '../middlewares/authMiddleware.js';
 
@@ -27,7 +32,14 @@ router.post('/', authorize('company'), createJob);
 router.get('/', authorize('student', 'mentor'), getAllJobs);
 
 // Get jobs by company (all jobs for company)
+router.get('/company/stats', authorize('company'), getCompanyStats);
+router.get('/company/reports', authorize('company'), getCompanyReports);
 router.get('/company', authorize('company'), getJobsByCompany);
+router.get('/placement-cells', authorize('company'), getPlacementCellsForCompany);
+
+// Get or update quiz for a company-owned job
+router.get('/:id/quiz', authorize('company'), getCompanyJobQuiz);
+router.put('/:id/quiz', authorize('company'), upsertCompanyJobQuiz);
 
 // Temporary route to check all jobs (for debugging)
 router.get('/debug-all', async (req, res) => {

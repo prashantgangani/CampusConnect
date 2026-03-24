@@ -3,6 +3,21 @@ import { useNavigate } from 'react-router-dom';
 import { registerUser } from '../../services/authService';
 import './Register.css';
 
+const getRegisterErrorMessage = (error) => {
+  const status = error?.status;
+  const rawMessage = (error?.message || error?.data?.message || error?.error || '').toLowerCase();
+
+  if (status === 400 && (rawMessage.includes('already exists') || rawMessage.includes('already registered'))) {
+    return 'This email is already registered. Please sign in instead.';
+  }
+
+  if (status === 400 && rawMessage.includes('required fields')) {
+    return 'Please complete all required fields before creating your account.';
+  }
+
+  return error?.message || error?.error || 'Registration failed. Please try again.';
+};
+
 const Register = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
@@ -85,7 +100,7 @@ const Register = () => {
 
     try {
       // Create data object without confirmPassword
-      const { confirmPassword, ...registrationData } = formData;
+      const { confirmPassword: _confirmPassword, ...registrationData } = formData;
       
       console.log('Sending registration data:', registrationData);
       const response = await registerUser(registrationData);
@@ -130,19 +145,8 @@ const Register = () => {
       }
     } catch (error) {
       console.error('Registration error:', error);
-      
-      // More detailed error handling
-      let errorMessage = 'Registration failed. Please try again.';
-      
-      if (error.response?.data?.message) {
-        errorMessage = error.response.data.message;
-      } else if (error.message) {
-        errorMessage = error.message;
-      } else if (error.error) {
-        errorMessage = error.error;
-      }
-      
-      setMessage({ text: errorMessage, type: 'error' });
+
+      setMessage({ text: getRegisterErrorMessage(error), type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -195,7 +199,7 @@ const Register = () => {
           <p>Already have an account? <a href="/login" className="signin-link">Sign in</a></p>
         </div>
           {message.text && (
-            <div className={`message ${message.type}`}>
+            <div className={`message ${message.type}`} role="alert" aria-live="polite">
               {message.text}
             </div>
           )}
@@ -227,7 +231,7 @@ const Register = () => {
               name="name"
               value={formData.name}
               onChange={handleChange}
-              placeholder="John Doe"
+              placeholder="Enter your full name"
               required
             />
           </div>

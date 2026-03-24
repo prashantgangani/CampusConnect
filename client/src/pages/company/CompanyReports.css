@@ -1,0 +1,208 @@
+.company-reports-root {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #0b1220 0%, #0f172a 45%, #172554 100%);
+  color: #e2e8f0;
+}
+
+.company-reports-root .dashboard-header {
+  background: rgba(15, 23, 42, 0.92);
+  border-bottom: 1px solid #334155;
+  box-shadow: none;
+  backdrop-filter: blur(8px);
+}
+
+.company-reports-root .logo-section,
+.company-reports-root .logo-text {
+  color: #f8fafc;
+}
+
+.company-reports-root .profile-btn,
+.company-reports-root .logout-btn {
+  border: 1px solid #334155;
+  background: #111827;
+  color: #f8fafc;
+}
+
+.company-reports-root .profile-btn:hover {
+  background: #1f2937;
+  border-color: #475569;
+  color: #f8fafc;
+}
+
+.company-reports-root .logout-btn:hover {
+  background: #dc2626;
+  border-color: #dc2626;
+  color: #ffffff;
+}
+
+.company-reports-root .welcome-section {
+  background: transparent;
+  border-bottom: 1px solid #334155;
+}
+
+.company-reports-root .welcome-section h1 {
+  color: #f8fafc;
+}
+
+.company-reports-root .welcome-section p {
+  color: #94a3b8;
+}
+
+.company-reports-content {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 24px 40px 32px;
+}
+
+.company-reports-summary-grid {
+  margin-bottom: 18px;
+}
+
+.company-reports-root .stat-card {
+  background: #111827;
+  border-color: #334155;
+  box-shadow: 0 10px 24px rgba(2, 6, 23, 0.35);
+}
+
+.company-reports-root .stat-card:hover {
+  box-shadow: 0 16px 30px rgba(2, 6, 23, 0.45);
+}
+
+.company-reports-root .stat-number {
+  color: #f8fafc;
+}
+
+.company-reports-root .stat-label {
+  color: #94a3b8;
+}
+
+.reports-blue {
+  background: #1e3a8a;
+  color: #bfdbfe;
+}
+
+.reports-green {
+  background: #14532d;
+  color: #bbf7d0;
+}
+
+.reports-amber {
+  background: #78350f;
+  color: #fde68a;
+}
+
+.reports-purple {
+  background: #4c1d95;
+  color: #e9d5ff;
+}
+
+.reports-cyan {
+  background: #164e63;
+  color: #a5f3fc;
+}
+
+.reports-red {
+  background: #7f1d1d;
+  color: #fecaca;
+}
+
+.company-reports-message {
+  max-width: 1400px;
+  margin: 12px auto 0;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.company-reports-message.error {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+.company-reports-table-card {
+  background: #111827;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  box-shadow: 0 12px 28px rgba(2, 6, 23, 0.35);
+  padding: 18px;
+}
+
+.company-reports-table-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.company-reports-table-header h3 {
+  margin: 0;
+  color: #f8fafc;
+}
+
+.company-reports-table-header span {
+  color: #94a3b8;
+  font-size: 13px;
+}
+
+.company-reports-empty {
+  border: 1px dashed #334155;
+  border-radius: 10px;
+  padding: 22px;
+  text-align: center;
+  color: #94a3b8;
+}
+
+.company-reports-table-wrap {
+  overflow-x: auto;
+}
+
+.company-reports-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 880px;
+}
+
+.company-reports-table th,
+.company-reports-table td {
+  text-align: left;
+  padding: 12px 10px;
+  border-bottom: 1px solid #1f2937;
+  font-size: 14px;
+  color: #cbd5e1;
+}
+
+.company-reports-table th {
+  font-weight: 700;
+  color: #94a3b8;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.company-reports-table tbody tr:hover {
+  background: rgba(30, 41, 59, 0.45);
+}
+
+.job-title-cell {
+  color: #f8fafc;
+  font-weight: 600;
+}
+
+.job-subtext {
+  margin-top: 3px;
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+@media (max-width: 980px) {
+  .company-reports-content {
+    padding: 20px 18px 26px;
+  }
+
+  .company-reports-table {
+    min-width: 760px;
+  }
+}

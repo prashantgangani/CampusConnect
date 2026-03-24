@@ -42,6 +42,23 @@ const mentorService = {
   rejectApplication: async (applicationId) => {
     const response = await api.patch(`/mentor/applications/${applicationId}/reject`);
     return response.data;
+  },
+
+  getProfile: async () => {
+    const response = await api.get('/mentor/profile');
+    return response.data;
+  },
+
+  searchPlacementCells: async (query) => {
+    const response = await api.get('/mentor/search-placement-cells', {
+      params: { q: query }
+    });
+    return response.data;
+  },
+
+  assignPlacementCell: async (placementEmail) => {
+    const response = await api.post('/mentor/assign-placement-cell', { placementEmail });
+    return response.data;
   }
 };
 

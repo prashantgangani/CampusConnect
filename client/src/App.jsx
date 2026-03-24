@@ -8,12 +8,15 @@ import Register from './pages/auth/Register';
 import StudentDashboard from './pages/student/StudentDashboard';
 import StudentProfile from './pages/student/StudentProfile';
 import JobList from './pages/student/JobList';
+import QuizNotice from './pages/student/QuizNotice';
 import CompanyDashboard from './pages/company/CompanyDashboard';
 import PostJob from './pages/company/PostJob';
 import ManageJobs from './pages/company/ManageJobs';
 import CompanyApplicants from './pages/company/CompanyApplicants';
+import CompanyReports from './pages/company/CompanyReports';
 import MentorDashboard from './pages/mentor/MentorDashboard';
 import StudentApprovals from './pages/mentor/StudentApprovals';
+import MentorProfile from './pages/mentor/MentorProfile';
 import PlacementDashboard from './pages/placement/PlacementDashboard';
 import VerifyCompanies from './pages/placement/VerifyCompanies';
 import './App.css';
@@ -44,6 +47,10 @@ function App() {
               path="/jobs"
               element={<ProtectedRoute element={<JobList />} requiredRole="student" />}
             />
+            <Route
+              path="/student/quiz-notice/:applicationId"
+              element={<ProtectedRoute element={<QuizNotice />} requiredRole="student" />}
+            />
             
             {/* Company Routes */}
             <Route 
@@ -62,6 +69,10 @@ function App() {
               path="/company/applicants" 
               element={<ProtectedRoute element={<CompanyApplicants />} requiredRole="company" />} 
             />
+            <Route
+              path="/company/reports"
+              element={<ProtectedRoute element={<CompanyReports />} requiredRole="company" />}
+            />
             
             {/* Mentor Routes */}
             <Route 
@@ -71,6 +82,10 @@ function App() {
             <Route 
               path="/mentor/approvals" 
               element={<ProtectedRoute element={<StudentApprovals />} requiredRole="mentor" />} 
+            />
+            <Route
+              path="/mentor/profile"
+              element={<ProtectedRoute element={<MentorProfile />} requiredRole="mentor" />}
             />
             
             {/* Placement Routes */}

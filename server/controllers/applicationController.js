@@ -1,10 +1,58 @@
 import Application from '../models/Application.js';
 import Quiz from '../models/Quiz.js';
 import QuizResult from '../models/QuizResult.js';
+import CompanyApplicantQuiz from '../models/CompanyApplicantQuiz.js';
 import Job from '../models/Job.js';
 import User from '../models/User.js';
 import Question from '../models/Question.js';
 import { seedQuestionsIfEmpty } from '../utils/quizQuestionsSeed.js';
+
+const normalizeQuizPayload = (quizInput = {}) => {
+  if (!quizInput || !Array.isArray(quizInput.questions) || quizInput.questions.length === 0) {
+    return null;
+  }
+
+  const questions = quizInput.questions.map((question, index) => {
+    const prompt = (question?.question || '').trim();
+    const options = Array.isArray(question?.options)
+      ? question.options.map((option) => (option || '').trim()).filter(Boolean)
+      : [];
+    const correctAnswer = (question?.correctAnswer || '').trim();
+    const marks = Number(question?.marks) > 0 ? Number(question.marks) : 1;
+
+    if (!prompt) {
+      throw new Error(`Quiz question ${index + 1}: prompt is required.`);
+    }
+    if (options.length !== 4) {
+      throw new Error(`Quiz question ${index + 1}: exactly 4 options are required.`);
+    }
+    if (!correctAnswer || !options.includes(correctAnswer)) {
+      throw new Error(`Quiz question ${index + 1}: correct answer must match one of the options.`);
+    }
+
+    return {
+      question: prompt,
+      options,
+      correctAnswer,
+      marks
+    };
+  });
+
+  const totalMarks = questions.reduce((sum, question) => sum + (Number(question.marks) || 1), 0);
+  const passingPercentage = Number(quizInput.passingPercentage) > 0
+    ? Number(quizInput.passingPercentage)
+    : 70;
+  const timeLimit = Number(quizInput.timeLimit) > 0 ? Number(quizInput.timeLimit) : 30;
+
+  return {
+    title: (quizInput.title || 'Company Round Quiz').trim(),
+    description: (quizInput.description || '').trim(),
+    questions,
+    totalMarks,
+    passingPercentage,
+    timeLimit
+  };
+};
 
 const shuffleQuestions = (items) => {
   const array = [...items];
@@ -159,16 +207,85 @@ export const startQuiz = async (req, res) => {
       });
     }
 
-    if (application.status !== 'quiz_pending') {
+    if (!['quiz_pending', 'company_quiz_pending'].includes(application.status)) {
       return res.status(400).json({
         success: false,
-        message: 'Quiz can only be started when status is quiz_pending'
+        message: 'Quiz is not available for this application status.'
+      });
+    }
+
+    if (application.status === 'company_quiz_pending') {
+      const applicantQuiz = await CompanyApplicantQuiz.findOne({ jobId: application.jobId })
+        .select('questions passingPercentage timeLimit title description quizDeadline')
+        .lean();
+
+      if (!applicantQuiz || !Array.isArray(applicantQuiz.questions) || applicantQuiz.questions.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'Company applicant quiz is not configured for this job.'
+        });
+      }
+
+      if (applicantQuiz.quizDeadline && new Date() > new Date(applicantQuiz.quizDeadline)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Company applicant quiz deadline has ended.'
+        });
+      }
+
+      const questions = applicantQuiz.questions.map((question) => ({
+        _id: question._id,
+        question: question.question,
+        options: question.options,
+        marks: question.marks || 1
+      }));
+
+      application.quizStartedAt = new Date();
+      await application.save();
+
+      return res.status(200).json({
+        success: true,
+        applicationId: application._id,
+        quizType: 'company_applicant_round',
+        passingPercentage: applicantQuiz.passingPercentage || 70,
+        timeLimit: applicantQuiz.timeLimit || 30,
+        title: applicantQuiz.title || 'Company Round Quiz',
+        description: applicantQuiz.description || '',
+        deadline: applicantQuiz.quizDeadline,
+        questions
+      });
+    }
+
+    const companyQuiz = await Quiz.findOne({ jobId: application.jobId })
+      .select('questions passingPercentage timeLimit title description')
+      .lean();
+
+    let questions = [];
+
+    if (companyQuiz && Array.isArray(companyQuiz.questions) && companyQuiz.questions.length > 0) {
+      questions = companyQuiz.questions.map((question) => ({
+        _id: question._id,
+        question: question.question,
+        options: question.options,
+        marks: question.marks || 1
+      }));
+
+      application.quizStartedAt = new Date();
+      await application.save();
+
+      return res.status(200).json({
+        success: true,
+        applicationId: application._id,
+        quizType: 'job_specific',
+        passingPercentage: companyQuiz.passingPercentage || 70,
+        timeLimit: companyQuiz.timeLimit || 30,
+        title: companyQuiz.title || 'Screening Quiz',
+        description: companyQuiz.description || '',
+        questions
       });
     }
 
     await seedQuestionsIfEmpty();
-
-    let questions = [];
 
     if (application.quizQuestionIds && application.quizQuestionIds.length === 10) {
       questions = await Question.find(
@@ -198,6 +315,8 @@ export const startQuiz = async (req, res) => {
     return res.status(200).json({
       success: true,
       applicationId: application._id,
+      quizType: 'static_question_bank',
+      passingPercentage: 70,
       questions
     });
   } catch (error) {
@@ -212,7 +331,7 @@ export const startQuiz = async (req, res) => {
 // Submit quiz answers
 export const submitQuiz = async (req, res) => {
   try {
-    const { applicationId, jobId, answers } = req.body;
+    const { applicationId, answers } = req.body;
     const studentId = req.user._id;
 
     // Find application
@@ -224,7 +343,7 @@ export const submitQuiz = async (req, res) => {
       });
     }
 
-    if (application.status !== 'quiz_pending') {
+    if (!['quiz_pending', 'company_quiz_pending'].includes(application.status)) {
       return res.status(400).json({
         success: false,
         message: 'Quiz is not available for this application status.'
@@ -238,7 +357,112 @@ export const submitQuiz = async (req, res) => {
     let resultAnswers = [];
     let quizId = null;
 
-    if (application.quizQuestionIds && application.quizQuestionIds.length > 0) {
+    const normalizedAnswers = Array.isArray(answers) ? answers : [];
+
+    if (application.status === 'company_quiz_pending') {
+      const applicantQuiz = await CompanyApplicantQuiz.findOne({ jobId: application.jobId }).lean();
+      if (!applicantQuiz || !Array.isArray(applicantQuiz.questions) || applicantQuiz.questions.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'Company applicant quiz is not configured for this job.'
+        });
+      }
+
+      if (applicantQuiz.quizDeadline && new Date() > new Date(applicantQuiz.quizDeadline)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Company applicant quiz deadline has ended.'
+        });
+      }
+
+      const answerMap = new Map(
+        normalizedAnswers
+          .filter((answer) => answer?.questionId)
+          .map((answer) => [String(answer.questionId), answer?.selectedAnswer])
+      );
+
+      totalMarks = applicantQuiz.questions.reduce((sum, question) => sum + (Number(question.marks) || 1), 0);
+
+      resultAnswers = applicantQuiz.questions.map((question) => {
+        const questionId = String(question._id);
+        const selectedAnswer = answerMap.has(questionId)
+          ? String(answerMap.get(questionId)).trim()
+          : null;
+        const correctAnswer = typeof question.correctAnswer === 'string'
+          ? question.correctAnswer.trim()
+          : question.correctAnswer;
+        const marks = Number(question.marks) || 1;
+        const isCorrect = !!selectedAnswer && selectedAnswer === correctAnswer;
+        if (isCorrect) {
+          marksObtained += marks;
+        }
+
+        return {
+          questionId: question._id,
+          selectedAnswer,
+          isCorrect,
+          marksObtained: isCorrect ? marks : 0
+        };
+      });
+
+      percentage = totalMarks > 0 ? Math.round((marksObtained / totalMarks) * 100) : 0;
+      passed = percentage >= (Number(applicantQuiz.passingPercentage) || 70);
+
+      application.status = passed ? 'company_quiz_passed' : 'company_quiz_failed';
+      application.companyQuizScore = percentage;
+      application.companyQuizAttemptedAt = new Date();
+
+      await application.save();
+
+      return res.status(200).json({
+        success: true,
+        message: passed
+          ? 'You passed the company round quiz. Wait for company approval after deadline.'
+          : 'You did not pass the company round quiz.',
+        passed,
+        percentage,
+        passingPercentage: applicantQuiz.passingPercentage || 70,
+        nextStatus: application.status
+      });
+    }
+
+    const companyQuiz = await Quiz.findOne({ jobId: application.jobId }).lean();
+
+    if (companyQuiz && Array.isArray(companyQuiz.questions) && companyQuiz.questions.length > 0) {
+      const answerMap = new Map(
+        normalizedAnswers
+          .filter((answer) => answer?.questionId)
+          .map((answer) => [String(answer.questionId), answer?.selectedAnswer])
+      );
+
+      quizId = companyQuiz._id;
+      totalMarks = companyQuiz.questions.reduce((sum, question) => sum + (Number(question.marks) || 1), 0);
+
+      resultAnswers = companyQuiz.questions.map((question) => {
+        const questionId = String(question._id);
+        const selectedAnswer = answerMap.has(questionId)
+          ? String(answerMap.get(questionId)).trim()
+          : null;
+        const correctAnswer = typeof question.correctAnswer === 'string'
+          ? question.correctAnswer.trim()
+          : question.correctAnswer;
+        const marks = Number(question.marks) || 1;
+        const isCorrect = !!selectedAnswer && selectedAnswer === correctAnswer;
+        if (isCorrect) {
+          marksObtained += marks;
+        }
+
+        return {
+          questionId: question._id,
+          selectedAnswer,
+          isCorrect,
+          marksObtained: isCorrect ? marks : 0
+        };
+      });
+
+      percentage = totalMarks > 0 ? Math.round((marksObtained / totalMarks) * 100) : 0;
+      passed = percentage >= (Number(companyQuiz.passingPercentage) || 70);
+    } else if (application.quizQuestionIds && application.quizQuestionIds.length > 0) {
       if (!Array.isArray(answers)) {
         return res.status(400).json({
           success: false,
@@ -352,37 +576,10 @@ export const submitQuiz = async (req, res) => {
         application.quizQuestionIds = questions.map((question) => question._id);
       }
     } else {
-      // Backward-compatible job-specific quiz flow
-      const quiz = await Quiz.findOne({ jobId });
-      if (!quiz) {
-        return res.status(404).json({
-          success: false,
-          message: 'Quiz not found'
-        });
-      }
-
-      totalMarks = 0;
-
-      quiz.questions.forEach((question, index) => {
-        totalMarks += question.marks;
-        const studentAnswer = answers[index];
-        const isCorrect = studentAnswer === question.correctAnswer;
-
-        resultAnswers.push({
-          questionId: question._id,
-          selectedAnswer: studentAnswer,
-          isCorrect,
-          marksObtained: isCorrect ? question.marks : 0
-        });
-
-        if (isCorrect) {
-          marksObtained += question.marks;
-        }
+      return res.status(400).json({
+        success: false,
+        message: 'No quiz questions are configured for this application.'
       });
-
-      percentage = Math.round((marksObtained / totalMarks) * 100);
-      passed = percentage >= quiz.passingPercentage;
-      quizId = quiz._id;
     }
 
     const existingResult = await QuizResult.findOne({ applicationId, studentId });
@@ -415,7 +612,7 @@ export const submitQuiz = async (req, res) => {
       message: passed ? 'Quiz passed! Application moved to mentor for verification.' : 'Quiz failed.',
       passed,
       percentage,
-      passingPercentage: 70,
+      passingPercentage: companyQuiz?.passingPercentage || 70,
       nextStatus: application.status
     });
   } catch (error) {
@@ -556,34 +753,247 @@ export const getCompanyApprovedApplications = async (req, res) => {
   try {
     const companyId = req.user._id;
 
-    const companyJobs = await Job.find({ company: companyId }).select('_id').lean();
+    const companyJobs = await Job.find({ company: companyId }).select('_id title').lean();
     const companyJobIds = companyJobs.map((job) => job._id);
 
     if (companyJobIds.length === 0) {
       return res.status(200).json({
         success: true,
         count: 0,
-        data: []
+        data: [],
+        pendingApplicants: [],
+        passedApplicants: []
       });
     }
 
+    const applicantQuizzes = await CompanyApplicantQuiz.find({ jobId: { $in: companyJobIds } })
+      .select('jobId quizDeadline')
+      .lean();
+
+    const jobQuizMap = new Map(
+      applicantQuizzes.map((quiz) => [
+        String(quiz.jobId),
+        {
+          deadline: quiz.quizDeadline ? new Date(quiz.quizDeadline) : null
+        }
+      ])
+    );
+
     const applications = await Application.find({
       jobId: { $in: companyJobIds },
-      status: 'mentor_approved'
+      status: { $in: ['mentor_approved', 'company_quiz_pending', 'company_quiz_passed'] }
     })
       .populate('studentId', 'name email')
       .populate('jobId', 'title')
       .sort({ updatedAt: -1 });
 
+    const now = new Date();
+    const pendingApplicants = [];
+    const passedApplicants = [];
+
+    for (const application of applications) {
+      const jobId = String(application.jobId?._id || application.jobId);
+      const quizConfig = jobQuizMap.get(jobId);
+
+      if (application.status === 'company_quiz_passed') {
+        if (quizConfig?.deadline && now >= quizConfig.deadline) {
+          passedApplicants.push(application);
+        }
+        continue;
+      }
+
+      pendingApplicants.push(application);
+    }
+
     return res.status(200).json({
       success: true,
-      count: applications.length,
-      data: applications
+      count: pendingApplicants.length,
+      data: pendingApplicants,
+      pendingApplicants,
+      passedApplicants
     });
   } catch (error) {
     return res.status(500).json({
       success: false,
       message: 'Error fetching company approved applications',
+      error: error.message
+    });
+  }
+};
+
+// Upload/update company applicant quiz for a specific job
+export const upsertCompanyApplicantQuiz = async (req, res) => {
+  try {
+    const { jobId } = req.params;
+    const companyId = req.user._id;
+
+    const job = await Job.findById(jobId).select('_id company title');
+    if (!job) {
+      return res.status(404).json({
+        success: false,
+        message: 'Job not found'
+      });
+    }
+
+    if (String(job.company) !== String(companyId)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to upload quiz for this job'
+      });
+    }
+
+    const normalizedQuiz = normalizeQuizPayload(req.body);
+    if (!normalizedQuiz) {
+      return res.status(400).json({
+        success: false,
+        message: 'At least one quiz question is required'
+      });
+    }
+
+    const deadlineInput = req.body?.quizDeadline;
+    const quizDeadline = deadlineInput ? new Date(deadlineInput) : null;
+    if (!quizDeadline || Number.isNaN(quizDeadline.getTime())) {
+      return res.status(400).json({
+        success: false,
+        message: 'A valid quiz deadline is required'
+      });
+    }
+
+    if (quizDeadline <= new Date()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Quiz deadline must be in the future'
+      });
+    }
+
+    const applicantQuiz = await CompanyApplicantQuiz.findOneAndUpdate(
+      { jobId: job._id },
+      {
+        $set: {
+          ...normalizedQuiz,
+          jobId: job._id,
+          quizDeadline
+        }
+      },
+      {
+        new: true,
+        upsert: true,
+        runValidators: true,
+        setDefaultsOnInsert: true
+      }
+    );
+
+    await Application.updateMany(
+      {
+        jobId: job._id,
+        status: 'mentor_approved'
+      },
+      {
+        $set: {
+          status: 'company_quiz_pending'
+        }
+      }
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: 'Company applicant quiz saved successfully',
+      data: applicantQuiz
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: 'Error saving company applicant quiz',
+      error: error.message
+    });
+  }
+};
+
+// Approve (hire) a passed applicant
+export const hireApplicationByCompany = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const companyId = req.user._id;
+
+    const application = await Application.findById(id).populate('jobId', 'company');
+    if (!application) {
+      return res.status(404).json({
+        success: false,
+        message: 'Application not found'
+      });
+    }
+
+    if (!application.jobId || String(application.jobId.company) !== String(companyId)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to approve this applicant'
+      });
+    }
+
+    if (application.status !== 'company_quiz_passed') {
+      return res.status(400).json({
+        success: false,
+        message: 'Only passed company-quiz applicants can be approved for hiring'
+      });
+    }
+
+    application.status = 'selected';
+    await application.save();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Applicant approved and marked as hired',
+      data: application
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: 'Error approving applicant for hiring',
+      error: error.message
+    });
+  }
+};
+
+// Reject application by company (from mentor-approved pool)
+export const rejectApplicationByCompany = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const companyId = req.user._id;
+
+    const application = await Application.findById(id).populate('jobId', 'company');
+    if (!application) {
+      return res.status(404).json({
+        success: false,
+        message: 'Application not found'
+      });
+    }
+
+    if (!application.jobId || String(application.jobId.company) !== String(companyId)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to reject this application'
+      });
+    }
+
+    if (!['mentor_approved', 'company_quiz_passed'].includes(application.status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Only eligible applicant pools can be rejected by company'
+      });
+    }
+
+    application.status = 'rejected';
+    await application.save();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Application rejected by company',
+      data: application
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: 'Error rejecting application by company',
       error: error.message
     });
   }
@@ -609,14 +1019,24 @@ export const approveApplicationByMentor = async (req, res) => {
       });
     }
 
-    application.status = 'mentor_approved';
+    const applicantQuiz = await CompanyApplicantQuiz.findOne({ jobId: application.jobId })
+      .select('quizDeadline')
+      .lean();
+
+    const shouldMoveToCompanyQuiz = !!(
+      applicantQuiz?.quizDeadline && new Date(applicantQuiz.quizDeadline) > new Date()
+    );
+
+    application.status = shouldMoveToCompanyQuiz ? 'company_quiz_pending' : 'mentor_approved';
     application.mentorId = req.user._id;
     application.mentorApprovedAt = new Date();
     await application.save();
 
     return res.status(200).json({
       success: true,
-      message: 'Approved by Mentor',
+      message: shouldMoveToCompanyQuiz
+        ? 'Approved by Mentor and moved to company quiz round'
+        : 'Approved by Mentor',
       data: application
     });
   } catch (error) {

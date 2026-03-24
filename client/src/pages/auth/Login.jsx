@@ -3,6 +3,21 @@ import { useNavigate } from 'react-router-dom';
 import { loginUser } from '../../services/authService';
 import './Login.css';
 
+const getLoginErrorMessage = (error) => {
+  const status = error?.status;
+  const rawMessage = (error?.message || error?.data?.message || '').toLowerCase();
+
+  if (status === 401 || rawMessage.includes('invalid email or password') || rawMessage.includes('invalid credentials')) {
+    return 'Invalid credentials. Please check your email and password.';
+  }
+
+  if (status === 400 && rawMessage.includes('email and password')) {
+    return 'Please enter both email and password.';
+  }
+
+  return error?.message || 'Login failed. Please try again.';
+};
+
 const Login = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
@@ -54,7 +69,7 @@ const Login = () => {
       }, 500);
     } catch (error) {
       console.error('Login error:', error);
-      setMessage({ text: error.message || 'Login failed. Please try again.', type: 'error' });
+      setMessage({ text: getLoginErrorMessage(error), type: 'error' });
       setLoading(false);
     }
   };
@@ -107,7 +122,7 @@ const Login = () => {
             <p>Don't have an account? <a href="/register" className="signup-link">Sign up free</a></p>
           </div>
           {message.text && (
-            <div className={`message ${message.type}`}>
+            <div className={`message ${message.type}`} role="alert" aria-live="polite">
               {message.text}
             </div>
           )}

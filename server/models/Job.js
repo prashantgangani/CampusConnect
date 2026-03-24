@@ -48,6 +48,10 @@ const jobSchema = new mongoose.Schema({
     type: String,
     trim: true
   }],
+  allowedPlacementCells: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }],
   applicationDeadline: {
     type: Date
   },

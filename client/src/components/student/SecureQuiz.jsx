@@ -205,12 +205,13 @@ const SecureQuiz = ({
 
       // Notify parent of success
       if (onSubmitSuccess) {
+        const serverMessage = submitResponse?.message;
         onSubmitSuccess({
           passed: submitResponse.passed,
           percentage: submitResponse.percentage,
-          text: submitResponse.passed
-            ? `Quiz auto-submitted! You scored ${submitResponse.percentage}%. Your application is sent to mentor for verification.`
-            : `Quiz auto-submitted. You scored ${submitResponse.percentage}%. You did not reach the passing score.`
+          text: serverMessage || (submitResponse.passed
+            ? `Quiz auto-submitted! You scored ${submitResponse.percentage}%.`
+            : `Quiz auto-submitted. You scored ${submitResponse.percentage}%. You did not reach the passing score.`)
         });
       }
 
@@ -403,12 +404,13 @@ const SecureQuiz = ({
       }
 
       if (onSubmitSuccess) {
+        const serverMessage = submitResponse?.message;
         onSubmitSuccess({
           passed: submitResponse.passed,
           percentage: submitResponse.percentage,
-          text: submitResponse.passed
-            ? `Quiz completed successfully! You scored ${submitResponse.percentage}%. Your application is sent to mentor for verification.`
-            : `Quiz completed. You scored ${submitResponse.percentage}%. You did not reach the passing score.`
+          text: serverMessage || (submitResponse.passed
+            ? `Quiz completed successfully! You scored ${submitResponse.percentage}%.`
+            : `Quiz completed. You scored ${submitResponse.percentage}%. You did not reach the passing score.`)
         });
       }
 
