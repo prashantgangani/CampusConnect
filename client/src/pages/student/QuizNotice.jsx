@@ -37,7 +37,14 @@ const QuizNotice = () => {
       setSecureQuizLoading(true);
 
       const response = await applicationService.startQuiz(applicationId);
-      const questions = response?.questions || [];
+      const rawQuestions = Array.isArray(response?.questions) ? response.questions : [];
+      const questions = rawQuestions
+        .map((question, index) => ({
+          ...question,
+          _id: question?._id || question?.id || `q_${index}`,
+          options: Array.isArray(question?.options) ? question.options : []
+        }))
+        .filter((question) => question.question && question.options.length > 0);
 
       if (!questions.length) {
         setMessage({
@@ -49,6 +56,7 @@ const QuizNotice = () => {
       }
 
       setSecureQuizQuestions(questions);
+      setSecureQuizLoading(false);
       setSecureQuizOpen(true);
     } catch (error) {
       setMessage({
