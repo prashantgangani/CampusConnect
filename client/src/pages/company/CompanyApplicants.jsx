@@ -1,21 +1,13 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import jobService from '../../services/jobService';
 import '../student/Dashboard.css';
 import './CompanyApplicants.css';
 
-const createEmptyQuestion = () => ({
-  question: '',
-  options: ['', '', '', ''],
-  correctAnswer: '',
-  marks: 1
-});
-
 const CompanyApplicants = () => {
   const navigate = useNavigate();
   const [approvedApplicants, setApprovedApplicants] = useState([]);
   const [passedApplicants, setPassedApplicants] = useState([]);
-  const [companyJobs, setCompanyJobs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [message, setMessage] = useState(null);
@@ -26,37 +18,17 @@ const CompanyApplicants = () => {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [actionLoadingId, setActionLoadingId] = useState(null);
 
-  const [quizForm, setQuizForm] = useState({
-    jobId: '',
-    title: 'Company Round Quiz',
-    description: '',
-    passingPercentage: 70,
-    timeLimit: 30,
-    quizDeadline: '',
-    questions: [createEmptyQuestion()]
-  });
-  const [quizSaving, setQuizSaving] = useState(false);
-
-  const loadApplicantsAndJobs = async () => {
+  const loadApplicants = async () => {
     setLoading(true);
     setError(null);
     try {
-      const [applicantsData, jobsData] = await Promise.all([
-        jobService.getCompanyApprovedApplicants(),
-        jobService.getJobsByCompany()
-      ]);
+      const applicantsData = await jobService.getCompanyApprovedApplicants();
 
       const pendingList = applicantsData.pendingApplicants || applicantsData.data || [];
       const passedList = applicantsData.passedApplicants || [];
 
       setApprovedApplicants(Array.isArray(pendingList) ? pendingList : []);
       setPassedApplicants(Array.isArray(passedList) ? passedList : []);
-      setCompanyJobs(Array.isArray(jobsData.jobs) ? jobsData.jobs : []);
-
-      setQuizForm((prev) => ({
-        ...prev,
-        jobId: prev.jobId || jobsData.jobs?.[0]?._id || ''
-      }));
     } catch (err) {
       setError(err.message || 'Failed to load applicants');
     } finally {
@@ -65,7 +37,7 @@ const CompanyApplicants = () => {
   };
 
   useEffect(() => {
-    loadApplicantsAndJobs();
+    loadApplicants();
   }, []);
 
   const handleViewProfile = async (studentId) => {
@@ -162,108 +134,6 @@ const CompanyApplicants = () => {
     }
   };
 
-  const addQuestion = () => {
-    setQuizForm((prev) => ({
-      ...prev,
-      questions: [...prev.questions, createEmptyQuestion()]
-    }));
-  };
-
-  const removeQuestion = (index) => {
-    setQuizForm((prev) => ({
-      ...prev,
-      questions: prev.questions.filter((_, idx) => idx !== index)
-    }));
-  };
-
-  const updateQuestionField = (index, field, value) => {
-    setQuizForm((prev) => {
-      const nextQuestions = [...prev.questions];
-      nextQuestions[index] = {
-        ...nextQuestions[index],
-        [field]: value
-      };
-      return {
-        ...prev,
-        questions: nextQuestions
-      };
-    });
-  };
-
-  const updateQuestionOption = (index, optionIndex, value) => {
-    setQuizForm((prev) => {
-      const nextQuestions = [...prev.questions];
-      const nextOptions = [...nextQuestions[index].options];
-      nextOptions[optionIndex] = value;
-      nextQuestions[index] = {
-        ...nextQuestions[index],
-        options: nextOptions
-      };
-      return {
-        ...prev,
-        questions: nextQuestions
-      };
-    });
-  };
-
-  const canSubmitQuiz = useMemo(() => {
-    if (!quizForm.jobId || !quizForm.quizDeadline || !quizForm.questions.length) {
-      return false;
-    }
-
-    return quizForm.questions.every((question) => {
-      const trimmedQuestion = question.question.trim();
-      const trimmedOptions = question.options.map((opt) => opt.trim());
-      const selectedAnswer = question.correctAnswer.trim();
-      return (
-        trimmedQuestion &&
-        trimmedOptions.length === 4 &&
-        trimmedOptions.every(Boolean) &&
-        selectedAnswer &&
-        trimmedOptions.includes(selectedAnswer)
-      );
-    });
-  }, [quizForm]);
-
-  const handleUploadQuiz = async () => {
-    if (!canSubmitQuiz) {
-      setError('Please complete all quiz fields correctly before uploading.');
-      return;
-    }
-
-    try {
-      setQuizSaving(true);
-      setError(null);
-
-      const payload = {
-        title: quizForm.title,
-        description: quizForm.description,
-        passingPercentage: Number(quizForm.passingPercentage) || 70,
-        timeLimit: Number(quizForm.timeLimit) || 30,
-        quizDeadline: quizForm.quizDeadline,
-        questions: quizForm.questions.map((question) => ({
-          question: question.question.trim(),
-          options: question.options.map((option) => option.trim()),
-          correctAnswer: question.correctAnswer.trim(),
-          marks: Number(question.marks) || 1
-        }))
-      };
-
-      await jobService.uploadCompanyApplicantQuiz(quizForm.jobId, payload);
-
-      setMessage({
-        type: 'success',
-        text: 'Company applicant quiz uploaded. Eligible applicants are moved to company quiz round.'
-      });
-
-      await loadApplicantsAndJobs();
-    } catch (err) {
-      setError(err.message || 'Failed to upload company applicant quiz');
-    } finally {
-      setQuizSaving(false);
-    }
-  };
-
   const socialLinks = selectedProfile?.links
     ? Object.entries(selectedProfile.links).filter(([, value]) => Boolean(value))
     : [];
@@ -288,7 +158,7 @@ const CompanyApplicants = () => {
 
       <div className="welcome-section">
         <h1>View Applicants</h1>
-        <p>Upload company quiz, track passed students, and approve hires.</p>
+        <p>Track applicants and approve final hires after assessments.</p>
       </div>
 
       <div className="dashboard-main">
@@ -303,146 +173,21 @@ const CompanyApplicants = () => {
             </div>
           ) : (
             <>
-              <div className="applicants-card quiz-upload-card">
-                <h3 className="applicants-title">Upload Company Applicant Quiz</h3>
-
-                <div className="quiz-upload-grid">
-                  <label>
-                    Job
-                    <select
-                      value={quizForm.jobId}
-                      onChange={(event) => setQuizForm((prev) => ({ ...prev, jobId: event.target.value }))}
-                    >
-                      {companyJobs.map((job) => (
-                        <option key={job._id} value={job._id}>{job.title}</option>
-                      ))}
-                    </select>
-                  </label>
-
-                  <label>
-                    Deadline
-                    <input
-                      type="datetime-local"
-                      value={quizForm.quizDeadline}
-                      onChange={(event) => setQuizForm((prev) => ({ ...prev, quizDeadline: event.target.value }))}
-                    />
-                  </label>
-
-                  <label>
-                    Passing %
-                    <input
-                      type="number"
-                      min="1"
-                      max="100"
-                      value={quizForm.passingPercentage}
-                      onChange={(event) => setQuizForm((prev) => ({ ...prev, passingPercentage: event.target.value }))}
-                    />
-                  </label>
-
-                  <label>
-                    Time (minutes)
-                    <input
-                      type="number"
-                      min="1"
-                      value={quizForm.timeLimit}
-                      onChange={(event) => setQuizForm((prev) => ({ ...prev, timeLimit: event.target.value }))}
-                    />
-                  </label>
-                </div>
-
-                <label className="quiz-upload-block">
-                  Quiz Title
-                  <input
-                    type="text"
-                    value={quizForm.title}
-                    onChange={(event) => setQuizForm((prev) => ({ ...prev, title: event.target.value }))}
-                  />
-                </label>
-
-                <label className="quiz-upload-block">
-                  Description
-                  <textarea
-                    rows={2}
-                    value={quizForm.description}
-                    onChange={(event) => setQuizForm((prev) => ({ ...prev, description: event.target.value }))}
-                  />
-                </label>
-
-                <div className="quiz-question-list">
-                  {quizForm.questions.map((question, index) => (
-                    <div key={`q-${index}`} className="quiz-question-item">
-                      <div className="quiz-question-top">
-                        <h4>Question {index + 1}</h4>
-                        {quizForm.questions.length > 1 && (
-                          <button type="button" className="quiz-link-btn" onClick={() => removeQuestion(index)}>
-                            Remove
-                          </button>
-                        )}
-                      </div>
-
-                      <input
-                        type="text"
-                        placeholder="Enter question"
-                        value={question.question}
-                        onChange={(event) => updateQuestionField(index, 'question', event.target.value)}
-                      />
-
-                      <div className="quiz-options-grid">
-                        {question.options.map((option, optionIndex) => (
-                          <input
-                            key={`q-${index}-opt-${optionIndex}`}
-                            type="text"
-                            placeholder={`Option ${optionIndex + 1}`}
-                            value={option}
-                            onChange={(event) => updateQuestionOption(index, optionIndex, event.target.value)}
-                          />
-                        ))}
-                      </div>
-
-                      <div className="quiz-question-bottom">
-                        <label>
-                          Correct Answer
-                          <select
-                            value={question.correctAnswer}
-                            onChange={(event) => updateQuestionField(index, 'correctAnswer', event.target.value)}
-                          >
-                            <option value="">Select answer</option>
-                            {question.options
-                              .map((option) => option.trim())
-                              .filter(Boolean)
-                              .map((option) => (
-                                <option key={`q-${index}-ans-${option}`} value={option}>
-                                  {option}
-                                </option>
-                              ))}
-                          </select>
-                        </label>
-
-                        <label>
-                          Marks
-                          <input
-                            type="number"
-                            min="1"
-                            value={question.marks}
-                            onChange={(event) => updateQuestionField(index, 'marks', event.target.value)}
-                          />
-                        </label>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="quiz-upload-actions">
-                  <button type="button" className="profile-btn-small" onClick={addQuestion}>+ Add Question</button>
-                  <button
-                    type="button"
-                    className="hire-btn-small"
-                    disabled={!canSubmitQuiz || quizSaving}
-                    onClick={handleUploadQuiz}
-                  >
-                    {quizSaving ? 'Uploading...' : 'Upload Quiz'}
-                  </button>
-                </div>
+              <div className="applicants-card quiz-redirect-card">
+                <h3 className="applicants-title">Company Applicant Quiz</h3>
+               
+                <ul className="quiz-redirect-points">
+                  <li>Select a job and set quiz deadline.</li>
+                  <li>Configure passing percentage and time limit.</li>
+                  <li>Add questions and correct answers in one place.</li>
+                </ul>
+                <button
+                  type="button"
+                  className="hire-btn-small quiz-redirect-button"
+                  onClick={() => navigate('/company/applicant-quiz-upload')}
+                >
+                  Go to Quiz Upload Page
+                </button>
               </div>
 
               {error && (

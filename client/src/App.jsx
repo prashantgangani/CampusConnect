@@ -13,6 +13,7 @@ import CompanyDashboard from './pages/company/CompanyDashboard';
 import PostJob from './pages/company/PostJob';
 import ManageJobs from './pages/company/ManageJobs';
 import CompanyApplicants from './pages/company/CompanyApplicants';
+import CompanyApplicantQuizUpload from './pages/company/CompanyApplicantQuizUpload';
 import CompanyReports from './pages/company/CompanyReports';
 import MentorDashboard from './pages/mentor/MentorDashboard';
 import StudentApprovals from './pages/mentor/StudentApprovals';
@@ -68,6 +69,10 @@ function App() {
             <Route 
               path="/company/applicants" 
               element={<ProtectedRoute element={<CompanyApplicants />} requiredRole="company" />} 
+            />
+            <Route
+              path="/company/applicant-quiz-upload"
+              element={<ProtectedRoute element={<CompanyApplicantQuizUpload />} requiredRole="company" />}
             />
             <Route
               path="/company/reports"
