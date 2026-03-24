@@ -429,6 +429,7 @@ const StudentDashboard = () => {
           </div>
           <div className="header-right">
             <div className="notification-bell">🔔</div>
+            <button className="profile-btn" onClick={() => navigate('/student/company-quiz-round')}>Company Quiz Round</button>
             <button className="profile-btn" onClick={() => navigate('/student/profile')}>My Profile</button>
             <button className="logout-btn" onClick={handleLogout}>Logout</button>
           </div>
@@ -458,6 +459,7 @@ const StudentDashboard = () => {
         </div>
         <div className="header-right">
           <div className="notification-bell">🔔</div>
+          <button className="profile-btn" onClick={() => navigate('/student/company-quiz-round')}>Company Quiz Round</button>
           <button className="profile-btn" onClick={() => navigate('/student/profile')}>My Profile</button>
           <button className="logout-btn" onClick={handleLogout}>Logout</button>
         </div>

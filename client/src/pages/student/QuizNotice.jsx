@@ -13,6 +13,7 @@ const QuizNotice = () => {
   const [secureQuizLoading, setSecureQuizLoading] = useState(false);
   const [secureQuizQuestions, setSecureQuizQuestions] = useState([]);
   const [message, setMessage] = useState({ text: '', type: '' });
+  const [quizResult, setQuizResult] = useState(null);
 
   const notices = useMemo(() => ([
     'Maintain integrity during the quiz. Any malpractice is strictly prohibited.',
@@ -75,6 +76,13 @@ const QuizNotice = () => {
     setSecureQuizQuestions([]);
   };
 
+  const handleQuizSubmitSuccess = (result) => {
+    setQuizResult(result);
+    setSecureQuizOpen(false);
+    setSecureQuizLoading(false);
+    setSecureQuizQuestions([]);
+  };
+
   return (
     <div className="quiz-notice-page">
       <header className="quiz-notice-header">
@@ -127,13 +135,42 @@ const QuizNotice = () => {
         </div>
       </main>
 
+      {quizResult && (
+        <main className="quiz-notice-main">
+          <div className="quiz-notice-card">
+            <h1>Quiz Result</h1>
+            <div className={`quiz-result-message ${quizResult.passed ? 'success' : 'failure'}`}>
+              <div className="result-icon">
+                {quizResult.passed ? '✅' : '❌'}
+              </div>
+              <div className="result-text">
+                <h2>{quizResult.passed ? 'Company Quiz Passed!' : 'Company Quiz Failed'}</h2>
+                <p>{quizResult.text}</p>
+                <div className="result-details">
+                  <span className="score">Score: {quizResult.percentage}%</span>
+                </div>
+              </div>
+            </div>
+            <div className="quiz-notice-actions">
+              <button
+                type="button"
+                className="quiz-notice-start"
+                onClick={() => navigate('/student/company-quiz-round')}
+              >
+                Back to Company Quiz Round
+              </button>
+            </div>
+          </div>
+        </main>
+      )}
+
       <SecureQuiz
         isOpen={secureQuizOpen}
         applicationId={applicationId}
         questions={secureQuizQuestions}
         loading={secureQuizLoading}
         onClose={handleCloseQuiz}
-        onSubmitSuccess={() => {}}
+        onSubmitSuccess={handleQuizSubmitSuccess}
       />
     </div>
   );

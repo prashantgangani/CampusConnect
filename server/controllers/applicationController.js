@@ -226,10 +226,21 @@ export const startQuiz = async (req, res) => {
         });
       }
 
-      if (applicantQuiz.quizDeadline && new Date() > new Date(applicantQuiz.quizDeadline)) {
+      const now = new Date();
+      const startTime = applicantQuiz.startTime ? new Date(applicantQuiz.startTime) : null;
+      const endTime = applicantQuiz.endTime ? new Date(applicantQuiz.endTime) : applicantQuiz.quizDeadline ? new Date(applicantQuiz.quizDeadline) : null;
+
+      if (startTime && now < startTime) {
         return res.status(400).json({
           success: false,
-          message: 'Company applicant quiz deadline has ended.'
+          message: 'Company applicant quiz has not started yet.'
+        });
+      }
+
+      if (endTime && now > endTime) {
+        return res.status(400).json({
+          success: false,
+          message: 'Company applicant quiz has ended.'
         });
       }
 
@@ -368,10 +379,21 @@ export const submitQuiz = async (req, res) => {
         });
       }
 
-      if (applicantQuiz.quizDeadline && new Date() > new Date(applicantQuiz.quizDeadline)) {
+      const now = new Date();
+      const startTime = applicantQuiz.startTime ? new Date(applicantQuiz.startTime) : null;
+      const endTime = applicantQuiz.endTime ? new Date(applicantQuiz.endTime) : applicantQuiz.quizDeadline ? new Date(applicantQuiz.quizDeadline) : null;
+
+      if (startTime && now < startTime) {
         return res.status(400).json({
           success: false,
-          message: 'Company applicant quiz deadline has ended.'
+          message: 'Company applicant quiz has not started yet.'
+        });
+      }
+
+      if (endTime && now > endTime) {
+        return res.status(400).json({
+          success: false,
+          message: 'Company applicant quiz has ended.'
         });
       }
 
@@ -821,6 +843,241 @@ export const getCompanyApprovedApplications = async (req, res) => {
   }
 };
 
+// Get company applicant quiz details for a job (company users)
+export const getCompanyApplicantQuiz = async (req, res) => {
+  try {
+    const { jobId } = req.params;
+    const companyId = req.user._id;
+
+    const job = await Job.findById(jobId).select('company');
+    if (!job) {
+      return res.status(404).json({ success: false, message: 'Job not found' });
+    }
+
+    if (String(job.company) !== String(companyId)) {
+      return res.status(403).json({ success: false, message: 'Not authorized to view quiz for this job' });
+    }
+
+    const applicantQuiz = await CompanyApplicantQuiz.findOne({ jobId }).lean();
+    if (!applicantQuiz) {
+      return res.status(404).json({ success: false, message: 'Company applicant quiz not found' });
+    }
+
+    return res.status(200).json({ success: true, data: applicantQuiz });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Error fetching company applicant quiz', error: error.message });
+  }
+};
+
+// Reassign an applicant to company quiz round (company action)
+export const reassignCompanyApplicant = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const companyId = req.user._id;
+
+    const application = await Application.findById(id).populate('jobId', 'company');
+    if (!application) {
+      return res.status(404).json({ success: false, message: 'Application not found' });
+    }
+
+    if (!application.jobId || String(application.jobId.company) !== String(companyId)) {
+      return res.status(403).json({ success: false, message: 'Not authorized to reassign this applicant' });
+    }
+
+    application.status = 'company_quiz_pending';
+    application.companyQuizScore = null;
+    application.companyQuizAttemptedAt = null;
+    await application.save();
+
+    return res.status(200).json({ success: true, message: 'Applicant reassigned to company quiz round', data: application });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Error reassigning applicant', error: error.message });
+  }
+};
+
+// Fetch active / company quiz items for authenticated student
+export const getStudentCompanyQuizzes = async (req, res) => {
+  try {
+    const studentId = req.user._id;
+
+    const applications = await Application.find({
+      studentId,
+      status: { $in: ['company_quiz_pending', 'company_quiz_failed', 'company_quiz_passed'] }
+    })
+      .populate('jobId', 'title company')
+      .lean();
+
+    if (!applications.length) {
+      return res.status(200).json({ success: true, data: [] });
+    }
+
+    const jobIds = [...new Set(applications.map((app) => String(app.jobId?._id)).filter(Boolean))];
+    const quizzes = await CompanyApplicantQuiz.find({ jobId: { $in: jobIds } }).lean();
+    const quizMap = new Map(quizzes.map((quiz) => [String(quiz.jobId), quiz]));
+
+    const now = new Date();
+
+    const payload = applications.map((app) => {
+      const quiz = quizMap.get(String(app.jobId?._id));
+      const startTime = quiz?.startTime ? new Date(quiz.startTime) : null;
+      const endTime = quiz?.endTime ? new Date(quiz.endTime) : quiz?.quizDeadline ? new Date(quiz.quizDeadline) : null;
+
+      const canAttempt = app.status === 'company_quiz_pending' && (!startTime || now >= startTime) && (!endTime || now <= endTime);
+
+      return {
+        applicationId: app._id,
+        jobId: app.jobId?._id,
+        jobTitle: app.jobId?.title,
+        status: app.status,
+        companyQuizScore: app.companyQuizScore,
+        quizTitle: quiz?.title || 'Company Applicant Quiz',
+        quizDescription: quiz?.description || '',
+        quizPassingPercentage: quiz?.passingPercentage,
+        quizTimeLimit: quiz?.timeLimit,
+        startTime: startTime?.toISOString() || null,
+        endTime: endTime?.toISOString() || null,
+        isWithinWindow: canAttempt,
+        uploadedAt: quiz?.createdAt || null
+      };
+    });
+
+    return res.status(200).json({ success: true, data: payload });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Error fetching assigned company quizzes', error: error.message });
+  }
+};
+
+// Get all company applicant quizzes for a company
+export const getCompanyQuizzes = async (req, res) => {
+  try {
+    const companyId = req.user._id;
+
+    const companyJobs = await Job.find({ company: companyId }).select('_id title').lean();
+    const jobIds = companyJobs.map((job) => job._id);
+
+    if (jobIds.length === 0) {
+      return res.status(200).json({ success: true, data: [] });
+    }
+
+    const quizzes = await CompanyApplicantQuiz.find({ jobId: { $in: jobIds } })
+      .populate('jobId', 'title')
+      .lean();
+
+    const quizData = quizzes.map((quiz) => ({
+      _id: quiz._id,
+      jobId: quiz.jobId?._id,
+      jobTitle: quiz.jobId?.title || 'Unknown Job',
+      title: quiz.title,
+      description: quiz.description,
+      passingPercentage: quiz.passingPercentage,
+      timeLimit: quiz.timeLimit,
+      startTime: quiz.startTime,
+      endTime: quiz.endTime,
+      quizDeadline: quiz.quizDeadline,
+      totalMarks: quiz.totalMarks,
+      questionsCount: quiz.questions?.length || 0,
+      createdAt: quiz.createdAt,
+      updatedAt: quiz.updatedAt
+    }));
+
+    return res.status(200).json({ success: true, data: quizData });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Error fetching company quizzes', error: error.message });
+  }
+};
+
+// Delete a company applicant quiz
+export const deleteCompanyApplicantQuiz = async (req, res) => {
+  try {
+    const { jobId } = req.params;
+    const companyId = req.user._id;
+
+    const job = await Job.findById(jobId).select('company');
+    if (!job) {
+      return res.status(404).json({ success: false, message: 'Job not found' });
+    }
+
+    if (String(job.company) !== String(companyId)) {
+      return res.status(403).json({ success: false, message: 'Not authorized to delete quiz for this job' });
+    }
+
+    const deletedQuiz = await CompanyApplicantQuiz.findOneAndDelete({ jobId });
+
+    if (!deletedQuiz) {
+      return res.status(404).json({ success: false, message: 'Quiz not found' });
+    }
+
+    // Reset applications to mentor_approved status
+    await Application.updateMany(
+      { jobId, status: { $in: ['company_quiz_pending', 'company_quiz_failed', 'company_quiz_passed'] } },
+      { $set: { status: 'mentor_approved', companyQuizScore: null, companyQuizAttemptedAt: null } }
+    );
+
+    return res.status(200).json({ success: true, message: 'Quiz deleted successfully' });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Error deleting company applicant quiz', error: error.message });
+  }
+};
+
+// Reassign company quiz to a specific student by email
+export const reassignCompanyQuizToStudent = async (req, res) => {
+  try {
+    const { jobId } = req.params;
+    const { studentEmail } = req.body;
+    const companyId = req.user._id;
+
+    if (!studentEmail) {
+      return res.status(400).json({ success: false, message: 'Student email is required' });
+    }
+
+    const job = await Job.findById(jobId).select('company');
+    if (!job) {
+      return res.status(404).json({ success: false, message: 'Job not found' });
+    }
+
+    if (String(job.company) !== String(companyId)) {
+      return res.status(403).json({ success: false, message: 'Not authorized to reassign quiz for this job' });
+    }
+
+    // Find student by email
+    const student = await User.findOne({ email: studentEmail, role: 'student' }).select('_id');
+    if (!student) {
+      return res.status(404).json({ success: false, message: 'Student not found with this email' });
+    }
+
+    // Find application for this student and job
+    const application = await Application.findOne({
+      studentId: student._id,
+      jobId,
+      status: { $in: ['mentor_approved', 'company_quiz_failed'] }
+    });
+
+    if (!application) {
+      return res.status(404).json({ success: false, message: 'No eligible application found for this student' });
+    }
+
+    // Check if quiz exists
+    const quiz = await CompanyApplicantQuiz.findOne({ jobId });
+    if (!quiz) {
+      return res.status(404).json({ success: false, message: 'Company quiz not found for this job' });
+    }
+
+    // Update application status
+    application.status = 'company_quiz_pending';
+    application.companyQuizScore = null;
+    application.companyQuizAttemptedAt = null;
+    await application.save();
+
+    return res.status(200).json({
+      success: true,
+      message: `Quiz reassigned successfully to ${studentEmail}`,
+      data: { applicationId: application._id, studentId: student._id }
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Error reassigning quiz to student', error: error.message });
+  }
+};
+
 // Upload/update company applicant quiz for a specific job
 export const upsertCompanyApplicantQuiz = async (req, res) => {
   try {
@@ -850,19 +1107,38 @@ export const upsertCompanyApplicantQuiz = async (req, res) => {
       });
     }
 
-    const deadlineInput = req.body?.quizDeadline;
-    const quizDeadline = deadlineInput ? new Date(deadlineInput) : null;
-    if (!quizDeadline || Number.isNaN(quizDeadline.getTime())) {
+    const now = new Date();
+    const startTimeInput = req.body?.startTime;
+    const endTimeInput = req.body?.endTime;
+
+    const startTime = startTimeInput ? new Date(startTimeInput) : null;
+    const endTime = endTimeInput ? new Date(endTimeInput) : null;
+
+    if (!startTime || Number.isNaN(startTime.getTime())) {
       return res.status(400).json({
         success: false,
-        message: 'A valid quiz deadline is required'
+        message: 'A valid startTime is required'
       });
     }
 
-    if (quizDeadline <= new Date()) {
+    if (!endTime || Number.isNaN(endTime.getTime())) {
       return res.status(400).json({
         success: false,
-        message: 'Quiz deadline must be in the future'
+        message: 'A valid endTime is required'
+      });
+    }
+
+    if (startTime < now) {
+      return res.status(400).json({
+        success: false,
+        message: 'Quiz startTime must be now or in the future'
+      });
+    }
+
+    if (endTime <= startTime) {
+      return res.status(400).json({
+        success: false,
+        message: 'Quiz endTime must be after startTime'
       });
     }
 
@@ -872,7 +1148,9 @@ export const upsertCompanyApplicantQuiz = async (req, res) => {
         $set: {
           ...normalizedQuiz,
           jobId: job._id,
-          quizDeadline
+          startTime,
+          endTime,
+          quizDeadline: endTime
         }
       },
       {

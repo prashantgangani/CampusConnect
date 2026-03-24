@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import jobService from '../../services/jobService';
 import '../student/Dashboard.css';
 import './CompanyApplicantQuizUpload.css';
@@ -13,6 +13,7 @@ const createEmptyQuestion = () => ({
 
 const CompanyApplicantQuizUpload = () => {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [companyJobs, setCompanyJobs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -25,9 +26,49 @@ const CompanyApplicantQuizUpload = () => {
     description: '',
     passingPercentage: 70,
     timeLimit: 30,
+    startTime: '',
+    endTime: '',
     quizDeadline: '',
     questions: [createEmptyQuestion()]
   });
+
+  const loadCompanyQuizForJob = async (jobId) => {
+    if (!jobId) return;
+    try {
+      setLoading(true);
+      const response = await jobService.getCompanyApplicantQuizByJob(jobId);
+      if (response?.success && response?.data) {
+        const quiz = response.data;
+        setQuizForm((prev) => ({
+          ...prev,
+          title: quiz.title || 'Company Round Quiz',
+          description: quiz.description || '',
+          passingPercentage: quiz.passingPercentage || 70,
+          timeLimit: quiz.timeLimit || 30,
+          startTime: quiz.startTime ? new Date(quiz.startTime).toISOString().slice(0, 16) : '',
+          endTime: quiz.endTime ? new Date(quiz.endTime).toISOString().slice(0, 16) : '',
+          quizDeadline: quiz.quizDeadline ? new Date(quiz.quizDeadline).toISOString().slice(0, 16) : '',
+          questions: Array.isArray(quiz.questions) && quiz.questions.length > 0 ? quiz.questions : [createEmptyQuestion()]
+        }));
+      } else {
+        setQuizForm((prev) => ({
+          ...prev,
+          title: 'Company Round Quiz',
+          description: '',
+          passingPercentage: 70,
+          timeLimit: 30,
+          startTime: '',
+          endTime: '',
+          quizDeadline: '',
+          questions: [createEmptyQuestion()]
+        }));
+      }
+    } catch (err) {
+      // no existing quiz is OK
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     const loadJobs = async () => {
@@ -36,10 +77,13 @@ const CompanyApplicantQuizUpload = () => {
         const jobsData = await jobService.getJobsByCompany();
         const jobs = Array.isArray(jobsData.jobs) ? jobsData.jobs : [];
         setCompanyJobs(jobs);
-        setQuizForm((prev) => ({
-          ...prev,
-          jobId: prev.jobId || jobs?.[0]?._id || ''
-        }));
+
+        const defaultJobId = quizForm.jobId || jobs?.[0]?._id || '';
+        setQuizForm((prev) => ({ ...prev, jobId: defaultJobId }));
+
+        if (defaultJobId) {
+          await loadCompanyQuizForJob(defaultJobId);
+        }
       } catch (err) {
         setMessage({ text: err.message || 'Failed to load company jobs.', type: 'error' });
       } finally {
@@ -49,6 +93,26 @@ const CompanyApplicantQuizUpload = () => {
 
     loadJobs();
   }, []);
+
+  // Handle edit mode from navigation state
+  useEffect(() => {
+    const state = location.state;
+    if (state?.quiz && state?.isEdit) {
+      const quiz = state.quiz;
+      setQuizForm({
+        jobId: quiz.jobId,
+        title: quiz.title || 'Company Round Quiz',
+        description: quiz.description || '',
+        passingPercentage: quiz.passingPercentage || 70,
+        timeLimit: quiz.timeLimit || 30,
+        startTime: quiz.startTime ? new Date(quiz.startTime).toISOString().slice(0, 16) : '',
+        endTime: quiz.endTime ? new Date(quiz.endTime).toISOString().slice(0, 16) : '',
+        quizDeadline: quiz.quizDeadline ? new Date(quiz.quizDeadline).toISOString().slice(0, 16) : '',
+        questions: Array.isArray(quiz.questions) && quiz.questions.length > 0 ? quiz.questions : [createEmptyQuestion()]
+      });
+      setLoading(false);
+    }
+  }, [location.state]);
 
   const addQuestion = () => {
     setQuizForm((prev) => ({
@@ -95,7 +159,19 @@ const CompanyApplicantQuizUpload = () => {
   };
 
   const canSubmitQuiz = useMemo(() => {
-    if (!quizForm.jobId || !quizForm.quizDeadline || !quizForm.questions.length) {
+    if (!quizForm.jobId || !quizForm.startTime || !quizForm.endTime || !quizForm.questions.length) {
+      return false;
+    }
+
+    const now = new Date();
+    const startTime = new Date(quizForm.startTime);
+    const endTime = new Date(quizForm.endTime);
+
+    if (Number.isNaN(startTime.getTime()) || Number.isNaN(endTime.getTime())) {
+      return false;
+    }
+
+    if (startTime < now || endTime <= startTime) {
       return false;
     }
 
@@ -128,7 +204,9 @@ const CompanyApplicantQuizUpload = () => {
         description: quizForm.description,
         passingPercentage: Number(quizForm.passingPercentage) || 70,
         timeLimit: Number(quizForm.timeLimit) || 30,
-        quizDeadline: quizForm.quizDeadline,
+        startTime: quizForm.startTime,
+        endTime: quizForm.endTime,
+        quizDeadline: quizForm.endTime,
         questions: quizForm.questions.map((question) => ({
           question: question.question.trim(),
           options: question.options.map((option) => option.trim()),
@@ -212,12 +290,34 @@ const CompanyApplicantQuizUpload = () => {
                   Job
                   <select
                     value={quizForm.jobId}
-                    onChange={(event) => setQuizForm((prev) => ({ ...prev, jobId: event.target.value }))}
+                    onChange={async (event) => {
+                      const selectedJobId = event.target.value;
+                      setQuizForm((prev) => ({ ...prev, jobId: selectedJobId }));
+                      await loadCompanyQuizForJob(selectedJobId);
+                    }}
                   >
                     {companyJobs.map((job) => (
                       <option key={job._id} value={job._id}>{job.title}</option>
                     ))}
                   </select>
+                </label>
+
+                <label>
+                  Start Time
+                  <input
+                    type="datetime-local"
+                    value={quizForm.startTime}
+                    onChange={(event) => setQuizForm((prev) => ({ ...prev, startTime: event.target.value }))}
+                  />
+                </label>
+
+                <label>
+                  End Time
+                  <input
+                    type="datetime-local"
+                    value={quizForm.endTime}
+                    onChange={(event) => setQuizForm((prev) => ({ ...prev, endTime: event.target.value }))}
+                  />
                 </label>
 
                 <label>

@@ -89,7 +89,47 @@ const applicationService = {
       throw error.response?.data || error.message;
     }
   },
+  // Get company quiz information assigned to the student
+  getStudentCompanyQuizzes: async () => {
+    try {
+      const response = await api.get('/applications/student/company-quizzes');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
 
+  // Get all quizzes for a company
+  getCompanyQuizzes: async () => {
+    try {
+      const response = await api.get('/applications/company/quizzes');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+
+  // Delete a company applicant quiz
+  deleteCompanyApplicantQuiz: async (jobId) => {
+    try {
+      const response = await api.delete(`/applications/company/jobs/${jobId}/quiz`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+
+  // Reassign company quiz to a specific student by email
+  reassignCompanyQuizToStudent: async (jobId, studentEmail) => {
+    try {
+      const response = await api.post(`/applications/company/jobs/${jobId}/reassign-quiz`, {
+        studentEmail
+      });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
   // Withdraw application
   withdrawApplication: async (applicationId) => {
     try {

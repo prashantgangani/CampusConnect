@@ -116,6 +116,40 @@ const CompanyApplicants = () => {
     }
   };
 
+  const handleReassignApplicant = async (applicationId) => {
+    if (!applicationId) return;
+
+    try {
+      setActionLoadingId(applicationId);
+      await jobService.reassignCompanyApplicant(applicationId);
+      setMessage({ type: 'success', text: 'Applicant reassigned to company quiz round.' });
+      await loadApplicants();
+    } catch (err) {
+      setError(err.message || 'Failed to reassign applicant');
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const handleMarkIneligible = async (applicationId) => {
+    if (!applicationId) return;
+
+    const confirmed = window.confirm('Mark this applicant as ineligible for this job?');
+    if (!confirmed) return;
+
+    try {
+      setActionLoadingId(applicationId);
+      await jobService.rejectCompanyApplicant(applicationId);
+      setApprovedApplicants((prev) => prev.filter((app) => app._id !== applicationId));
+      setPassedApplicants((prev) => prev.filter((app) => app._id !== applicationId));
+      setMessage({ type: 'success', text: 'Applicant marked ineligible.' });
+    } catch (err) {
+      setError(err.message || 'Failed to mark ineligible');
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
   const handleHireApplicant = async (applicationId) => {
     if (!applicationId) return;
 
@@ -219,6 +253,20 @@ const CompanyApplicants = () => {
                             {profileLoading ? 'Loading...' : 'See Profile'}
                           </button>
                           <button
+                            onClick={() => handleReassignApplicant(app._id)}
+                            className="profile-btn-small"
+                            disabled={actionLoadingId === app._id}
+                          >
+                            {actionLoadingId === app._id ? 'Reassigning...' : 'Reassign'}
+                          </button>
+                          <button
+                            onClick={() => handleMarkIneligible(app._id)}
+                            className="reject-btn-small"
+                            disabled={actionLoadingId === app._id}
+                          >
+                            {actionLoadingId === app._id ? 'Processing...' : 'Ineligible'}
+                          </button>
+                          <button
                             onClick={() => handleRejectApplicant(app._id)}
                             className="reject-btn-small"
                             disabled={actionLoadingId === app._id}
@@ -252,6 +300,20 @@ const CompanyApplicants = () => {
                             disabled={profileLoading}
                           >
                             {profileLoading ? 'Loading...' : 'See Profile'}
+                          </button>
+                          <button
+                            onClick={() => handleReassignApplicant(app._id)}
+                            className="profile-btn-small"
+                            disabled={actionLoadingId === app._id}
+                          >
+                            {actionLoadingId === app._id ? 'Reassigning...' : 'Reassign'}
+                          </button>
+                          <button
+                            onClick={() => handleMarkIneligible(app._id)}
+                            className="reject-btn-small"
+                            disabled={actionLoadingId === app._id}
+                          >
+                            {actionLoadingId === app._id ? 'Processing...' : 'Ineligible'}
                           </button>
                           <button
                             onClick={() => handleHireApplicant(app._id)}

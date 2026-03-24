@@ -9,6 +9,7 @@ import StudentDashboard from './pages/student/StudentDashboard';
 import StudentProfile from './pages/student/StudentProfile';
 import JobList from './pages/student/JobList';
 import QuizNotice from './pages/student/QuizNotice';
+import CompanyQuizRound from './pages/student/CompanyQuizRound';
 import CompanyDashboard from './pages/company/CompanyDashboard';
 import PostJob from './pages/company/PostJob';
 import ManageJobs from './pages/company/ManageJobs';
@@ -51,6 +52,10 @@ function App() {
             <Route
               path="/student/quiz-notice/:applicationId"
               element={<ProtectedRoute element={<QuizNotice />} requiredRole="student" />}
+            />
+            <Route
+              path="/student/company-quiz-round"
+              element={<ProtectedRoute element={<CompanyQuizRound />} requiredRole="student" />}
             />
             
             {/* Company Routes */}

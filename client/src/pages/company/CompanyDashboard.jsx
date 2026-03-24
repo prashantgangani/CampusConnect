@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import jobService from '../../services/jobService';
+import applicationService from '../../services/applicationService';
 import '../student/Dashboard.css';
 
 const CompanyDashboard = () => {
@@ -12,6 +13,8 @@ const CompanyDashboard = () => {
     interviews: 0,
     hired: 0
   });
+  const [quizzes, setQuizzes] = useState([]);
+  const [loadingQuizzes, setLoadingQuizzes] = useState(false);
 
   useEffect(() => {
     const loadStats = async () => {
@@ -42,6 +45,23 @@ const CompanyDashboard = () => {
     loadStats();
   }, []);
 
+  const loadQuizzes = async () => {
+    setLoadingQuizzes(true);
+    try {
+      const response = await applicationService.getCompanyQuizzes();
+      setQuizzes(response.data || []);
+    } catch (error) {
+      console.error('Failed to load company quizzes:', error);
+      setQuizzes([]);
+    } finally {
+      setLoadingQuizzes(false);
+    }
+  };
+
+  useEffect(() => {
+    loadQuizzes();
+  }, []);
+
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
@@ -70,6 +90,41 @@ const CompanyDashboard = () => {
 
   const handleCompanyProfile = () => {
     navigate('/company/profile');
+  };
+
+  const handleEditQuiz = (quiz) => {
+    // Navigate to quiz upload page with quiz data for editing
+    navigate('/company/quiz-upload', { state: { quiz, isEdit: true } });
+  };
+
+  const handleDeleteQuiz = async (quiz) => {
+    if (!window.confirm(`Are you sure you want to delete the quiz for "${quiz.jobTitle}"? This will reset all student applications to mentor approved status.`)) {
+      return;
+    }
+
+    try {
+      await applicationService.deleteCompanyApplicantQuiz(quiz.jobId);
+      alert('Quiz deleted successfully!');
+      loadQuizzes(); // Reload quizzes
+    } catch (error) {
+      console.error('Failed to delete quiz:', error);
+      alert('Failed to delete quiz. Please try again.');
+    }
+  };
+
+  const handleReassignQuiz = async (quiz) => {
+    const studentEmail = prompt(`Enter student email to reassign quiz for "${quiz.jobTitle}":`);
+    if (!studentEmail || !studentEmail.trim()) {
+      return;
+    }
+
+    try {
+      await applicationService.reassignCompanyQuizToStudent(quiz.jobId, studentEmail.trim());
+      alert(`Quiz reassigned successfully to ${studentEmail}!`);
+    } catch (error) {
+      console.error('Failed to reassign quiz:', error);
+      alert(error.message || 'Failed to reassign quiz. Please check the email and try again.');
+    }
   };
 
   const quickActions = [
@@ -179,6 +234,118 @@ const CompanyDashboard = () => {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Quiz Section */}
+      <div className="quiz-section" style={{ margin: '20px 0', padding: '0 20px' }}>
+        <h2 style={{ marginBottom: '15px', color: '#1e293b' }}>Uploaded Quizzes</h2>
+        {loadingQuizzes ? (
+          <div style={{ textAlign: 'center', padding: '20px' }}>
+            <div>Loading quizzes...</div>
+          </div>
+        ) : quizzes.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '40px', backgroundColor: '#f8fafc', borderRadius: '8px', border: '2px dashed #cbd5e1' }}>
+            <div style={{ fontSize: '48px', marginBottom: '10px' }}>📝</div>
+            <div style={{ fontSize: '18px', fontWeight: '600', color: '#475569', marginBottom: '5px' }}>No Quizzes Uploaded Yet</div>
+            <div style={{ color: '#64748b' }}>Upload your first company quiz to get started</div>
+          </div>
+        ) : (
+          <div className="quiz-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '20px' }}>
+            {quizzes.map((quiz) => (
+              <div key={quiz._id} className="quiz-card" style={{
+                backgroundColor: '#ffffff',
+                border: '1px solid #e2e8f0',
+                borderRadius: '12px',
+                padding: '20px',
+                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+                transition: 'box-shadow 0.2s ease'
+              }}>
+                <div style={{ marginBottom: '15px' }}>
+                  <h3 style={{ margin: '0 0 5px 0', fontSize: '18px', fontWeight: '600', color: '#1e293b' }}>
+                    {quiz.title}
+                  </h3>
+                  <p style={{ margin: '0', fontSize: '14px', color: '#64748b' }}>
+                    Job: {quiz.jobTitle}
+                  </p>
+                </div>
+
+                <div style={{ marginBottom: '15px' }}>
+                  <p style={{ margin: '0 0 8px 0', fontSize: '14px', color: '#475569' }}>
+                    {quiz.description || 'No description provided'}
+                  </p>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', fontSize: '13px', color: '#64748b' }}>
+                    <span>📊 {quiz.questionsCount} Questions</span>
+                    <span>⏱️ {quiz.timeLimit} mins</span>
+                    <span>✅ {quiz.passingPercentage}% Pass</span>
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: '15px' }}>
+                  <div style={{ fontSize: '13px', color: '#64748b', marginBottom: '5px' }}>
+                    <strong>Start:</strong> {quiz.startTime ? new Date(quiz.startTime).toLocaleString() : 'Not set'}
+                  </div>
+                  <div style={{ fontSize: '13px', color: '#64748b' }}>
+                    <strong>End:</strong> {quiz.endTime ? new Date(quiz.endTime).toLocaleString() : 'Not set'}
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  <button
+                    onClick={() => handleEditQuiz(quiz)}
+                    style={{
+                      backgroundColor: '#3b82f6',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      padding: '8px 12px',
+                      fontSize: '13px',
+                      cursor: 'pointer',
+                      transition: 'background-color 0.2s'
+                    }}
+                    onMouseOver={(e) => e.target.style.backgroundColor = '#2563eb'}
+                    onMouseOut={(e) => e.target.style.backgroundColor = '#3b82f6'}
+                  >
+                    ✏️ Edit
+                  </button>
+                  <button
+                    onClick={() => handleDeleteQuiz(quiz)}
+                    style={{
+                      backgroundColor: '#ef4444',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      padding: '8px 12px',
+                      fontSize: '13px',
+                      cursor: 'pointer',
+                      transition: 'background-color 0.2s'
+                    }}
+                    onMouseOver={(e) => e.target.style.backgroundColor = '#dc2626'}
+                    onMouseOut={(e) => e.target.style.backgroundColor = '#ef4444'}
+                  >
+                    🗑️ Delete
+                  </button>
+                  <button
+                    onClick={() => handleReassignQuiz(quiz)}
+                    style={{
+                      backgroundColor: '#10b981',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      padding: '8px 12px',
+                      fontSize: '13px',
+                      cursor: 'pointer',
+                      transition: 'background-color 0.2s'
+                    }}
+                    onMouseOver={(e) => e.target.style.backgroundColor = '#059669'}
+                    onMouseOut={(e) => e.target.style.backgroundColor = '#10b981'}
+                  >
+                    📧 Reassign
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="dashboard-main">

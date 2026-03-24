@@ -84,6 +84,24 @@ const jobService = {
     }
   },
 
+  getCompanyApplicantQuizByJob: async (jobId) => {
+    try {
+      const response = await api.get(`/applications/company/jobs/${jobId}/quiz`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+
+  reassignCompanyApplicant: async (applicationId) => {
+    try {
+      const response = await api.patch(`/applications/company/${applicationId}/reassign`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+
   rejectCompanyApplicant: async (applicationId) => {
     try {
       const response = await api.patch(`/applications/company/${applicationId}/reject`);

@@ -63,9 +63,14 @@ const companyApplicantQuizSchema = new mongoose.Schema({
     default: 30,
     min: 1
   },
+  startTime: {
+    type: Date
+  },
+  endTime: {
+    type: Date
+  },
   quizDeadline: {
-    type: Date,
-    required: true
+    type: Date
   }
 }, {
   timestamps: true
