@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import jobService from '../../services/jobService';
 import applicationService from '../../services/applicationService';
 import api from '../../services/api';
+import notificationApiService from '../../services/notificationApiService';
 import './Dashboard.css';
 
 const StudentDashboard = () => {
@@ -33,6 +34,11 @@ const StudentDashboard = () => {
     text: ''
   });
   const [searchQuery, setSearchQuery] = useState('');
+  const [notifications, setNotifications] = useState([]);
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
+  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const notificationPanelRef = useRef(null);
 
   const getErrorMessage = (error, fallback) => {
     if (typeof error === 'string') return error;
@@ -50,6 +56,19 @@ const StudentDashboard = () => {
     || job?.company?.name
     || 'Company'
   );
+
+  const fetchNotifications = useCallback(async () => {
+    try {
+      setNotificationsLoading(true);
+      const response = await notificationApiService.getMyNotifications(40);
+      setNotifications(Array.isArray(response?.data) ? response.data : []);
+      setUnreadNotificationCount(Number(response?.unreadCount) || 0);
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+    } finally {
+      setNotificationsLoading(false);
+    }
+  }, []);
 
   const fetchDashboardData = useCallback(async (showLoader = true) => {
     try {
@@ -244,8 +263,35 @@ const StudentDashboard = () => {
   useEffect(() => {
     if (token) {
       fetchDashboardData(true);
+      fetchNotifications();
     }
-  }, [token, fetchDashboardData]);
+  }, [token, fetchDashboardData, fetchNotifications]);
+
+  useEffect(() => {
+    if (!token) return undefined;
+
+    const intervalId = setInterval(() => {
+      fetchNotifications();
+    }, 30000);
+
+    return () => clearInterval(intervalId);
+  }, [token, fetchNotifications]);
+
+  useEffect(() => {
+    const handleOutsideClick = (event) => {
+      if (!notificationPanelRef.current?.contains(event.target)) {
+        setIsNotificationOpen(false);
+      }
+    };
+
+    if (isNotificationOpen) {
+      document.addEventListener('mousedown', handleOutsideClick);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+    };
+  }, [isNotificationOpen]);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -263,6 +309,45 @@ const StudentDashboard = () => {
 
   const handleQuickAddSkill = () => {
     navigate('/student/profile?action=skills');
+  };
+
+  const handleOpenNotifications = async () => {
+    const shouldOpen = !isNotificationOpen;
+    setIsNotificationOpen(shouldOpen);
+
+    if (shouldOpen) {
+      await fetchNotifications();
+    }
+  };
+
+  const handleMarkNotificationRead = async (notificationId, isRead) => {
+    try {
+      if (isRead) return;
+
+      await notificationApiService.markAsRead(notificationId);
+
+      setNotifications((prev) =>
+        prev.map((notification) => (
+          notification._id === notificationId
+            ? { ...notification, isRead: true, readAt: new Date().toISOString() }
+            : notification
+        ))
+      );
+
+      setUnreadNotificationCount((prev) => Math.max(0, prev - 1));
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+    }
+  };
+
+  const handleMarkAllNotificationsRead = async () => {
+    try {
+      await notificationApiService.markAllAsRead();
+      setNotifications((prev) => prev.map((notification) => ({ ...notification, isRead: true, readAt: new Date().toISOString() })));
+      setUnreadNotificationCount(0);
+    } catch (error) {
+      console.error('Error marking all notifications as read:', error);
+    }
   };
 
   const handleApplyJob = async (jobId) => {
@@ -452,6 +537,95 @@ const StudentDashboard = () => {
   const filteredSuggestedJobs = suggestedJobs.filter((suggestion) => matchesJobSearch(suggestion?.job));
   const filteredAvailableOpportunities = availableOpportunities.filter((job) => matchesJobSearch(job));
 
+  const getNotificationIcon = (type) => {
+    const iconMap = {
+      application: '📩',
+      profile: '👤',
+      quiz: '📝',
+      selection: '🎉',
+      system: '🔔'
+    };
+
+    return iconMap[type] || '🔔';
+  };
+
+  const formatNotificationTime = (timestamp) => {
+    if (!timestamp) return '';
+
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMinutes = Math.floor((now - date) / (1000 * 60));
+
+    if (diffMinutes < 1) return 'just now';
+    if (diffMinutes < 60) return `${diffMinutes}m ago`;
+
+    const diffHours = Math.floor(diffMinutes / 60);
+    if (diffHours < 24) return `${diffHours}h ago`;
+
+    const diffDays = Math.floor(diffHours / 24);
+    if (diffDays < 7) return `${diffDays}d ago`;
+
+    return date.toLocaleDateString();
+  };
+
+  const renderNotificationBell = () => (
+    <div className="notification-wrapper" ref={notificationPanelRef}>
+      <button
+        type="button"
+        className="notification-bell"
+        onClick={handleOpenNotifications}
+        aria-label="Open notifications"
+      >
+        <span>🔔</span>
+        {unreadNotificationCount > 0 && (
+          <span className="notification-count">
+            {unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}
+          </span>
+        )}
+      </button>
+
+      {isNotificationOpen && (
+        <div className="notification-dropdown" role="menu" aria-label="Notification history">
+          <div className="notification-dropdown-header">
+            <h4>Notifications</h4>
+            <button
+              type="button"
+              className="notification-action"
+              onClick={handleMarkAllNotificationsRead}
+              disabled={unreadNotificationCount === 0}
+            >
+              Mark all read
+            </button>
+          </div>
+
+          <div className="notification-list">
+            {notificationsLoading ? (
+              <p className="notification-empty">Loading notifications...</p>
+            ) : notifications.length === 0 ? (
+              <p className="notification-empty">No notifications yet.</p>
+            ) : (
+              notifications.map((notification) => (
+                <button
+                  key={notification._id}
+                  type="button"
+                  className={`notification-item ${notification.isRead ? '' : 'unread'}`}
+                  onClick={() => handleMarkNotificationRead(notification._id, notification.isRead)}
+                >
+                  <span className="notification-item-icon">{getNotificationIcon(notification.type)}</span>
+                  <span className="notification-item-content">
+                    <span className="notification-item-title">{notification.title}</span>
+                    <span className="notification-item-message">{notification.message}</span>
+                    <span className="notification-item-time">{formatNotificationTime(notification.createdAt)}</span>
+                  </span>
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
   if (loading) {
     return (
       <div className="student-dashboard">
@@ -463,7 +637,7 @@ const StudentDashboard = () => {
             </div>
           </div>
           <div className="header-right">
-            <div className="notification-bell">🔔</div>
+            {renderNotificationBell()}
             <button className="profile-btn" onClick={() => navigate('/student/company-quiz-round')}>Company Quiz Round</button>
             <button className="profile-btn" onClick={() => navigate('/student/profile')}>My Profile</button>
             <button className="logout-btn" onClick={handleLogout}>Logout</button>
@@ -493,7 +667,7 @@ const StudentDashboard = () => {
           />
         </div>
         <div className="header-right">
-          <div className="notification-bell">🔔</div>
+          {renderNotificationBell()}
           <button className="profile-btn" onClick={() => navigate('/student/company-quiz-round')}>Company Quiz Round</button>
           <button className="profile-btn" onClick={() => navigate('/student/profile')}>My Profile</button>
           <button className="logout-btn" onClick={handleLogout}>Logout</button>

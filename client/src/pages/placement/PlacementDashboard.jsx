@@ -6,6 +6,21 @@ import StatCard from '../../components/placement/StatCard';
 import ActionCard from '../../components/placement/ActionCard';
 import './Dashboard.css';
 
+const defaultAnalytics = {
+  yearWise: [],
+  companyWise: [],
+  companyOptions: [],
+  summary: {
+    totalStudents: 0,
+    placedStudents: 0,
+    unplacedStudents: 0,
+    placementRate: 0,
+    averageSalaryLabel: 'N/A',
+    minimumSalaryLabel: 'N/A',
+    maximumSalaryLabel: 'N/A'
+  }
+};
+
 const PlacementDashboard = () => {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -28,6 +43,27 @@ const PlacementDashboard = () => {
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
 
+  const [analyticsOpen, setAnalyticsOpen] = useState(false);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [analyticsData, setAnalyticsData] = useState(defaultAnalytics);
+  const [analyticsFilters, setAnalyticsFilters] = useState({
+    year: '',
+    companyId: ''
+  });
+  const [analyticsGraphType, setAnalyticsGraphType] = useState('placedVsUnplaced');
+
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportLoading, setReportLoading] = useState(false);
+  const [reportForm, setReportForm] = useState({
+    title: 'Placement Summary Report',
+    reportType: 'placement-summary',
+    reportFormat: 'pdf',
+    year: '',
+    companyId: '',
+    includeYearTrend: true,
+    includeCompanyBreakdown: true
+  });
+
   const loadPlacementData = useCallback(async () => {
     try {
       setLoading(true);
@@ -41,10 +77,27 @@ const PlacementDashboard = () => {
       setStats(dashboardResponse.stats || {});
       setRecentJobs(jobsResponse.jobs || []);
       setRecentCompanies(companiesResponse.companies || []);
-    } catch (error) {
-      setError(error?.message || 'Unable to load placement dashboard data.');
+    } catch (loadError) {
+      setError(loadError?.message || 'Unable to load placement dashboard data.');
     } finally {
       setLoading(false);
+    }
+  }, []);
+
+  const loadAnalytics = useCallback(async (filters = {}) => {
+    try {
+      setAnalyticsLoading(true);
+      const response = await placementService.getAnalytics(filters);
+      setAnalyticsData({
+        yearWise: response?.yearWise || [],
+        companyWise: response?.companyWise || [],
+        companyOptions: response?.companyOptions || [],
+        summary: response?.summary || defaultAnalytics.summary
+      });
+    } catch (analyticsError) {
+      setToast({ type: 'error', text: analyticsError?.message || 'Failed to load analytics.' });
+    } finally {
+      setAnalyticsLoading(false);
     }
   }, []);
 
@@ -54,7 +107,7 @@ const PlacementDashboard = () => {
 
   useEffect(() => {
     if (!toast) return undefined;
-    const timer = setTimeout(() => setToast(null), 2500);
+    const timer = setTimeout(() => setToast(null), 3000);
     return () => clearTimeout(timer);
   }, [toast]);
 
@@ -70,8 +123,8 @@ const PlacementDashboard = () => {
       const response = await placementService.getProfile();
       setProfile(response.profile);
       setProfileModalOpen(true);
-    } catch (error) {
-      setToast({ type: 'error', text: error?.message || 'Failed to load profile.' });
+    } catch (profileError) {
+      setToast({ type: 'error', text: profileError?.message || 'Failed to load profile.' });
     } finally {
       setProfileLoading(false);
     }
@@ -88,8 +141,8 @@ const PlacementDashboard = () => {
       setProfile(response.profile);
       setToast({ type: 'success', text: 'Profile updated successfully.' });
       setProfileModalOpen(false);
-    } catch (error) {
-      setToast({ type: 'error', text: error?.message || 'Failed to save profile.' });
+    } catch (saveError) {
+      setToast({ type: 'error', text: saveError?.message || 'Failed to save profile.' });
     } finally {
       setProfileSaving(false);
     }
@@ -103,12 +156,16 @@ const PlacementDashboard = () => {
     navigate('/placement/verify-companies');
   };
 
-  const handleViewAnalytics = () => {
-    setToast({ type: 'success', text: 'Analytics module is available in the trends section below.' });
+  const handleViewAnalytics = async () => {
+    setAnalyticsOpen(true);
+    await loadAnalytics(analyticsFilters);
   };
 
-  const handleGenerateReports = () => {
-    setToast({ type: 'success', text: 'Report generation request queued.' });
+  const handleGenerateReports = async () => {
+    setReportOpen(true);
+    if (!analyticsData.companyOptions.length) {
+      await loadAnalytics({});
+    }
   };
 
   const handleApproveCompany = async (companyId) => {
@@ -117,10 +174,188 @@ const PlacementDashboard = () => {
       const response = await placementService.approveCompany(companyId);
       setToast({ type: 'success', text: response.message || 'Company approved successfully.' });
       await loadPlacementData();
-    } catch (error) {
-      setToast({ type: 'error', text: error?.message || 'Failed to approve company.' });
+    } catch (approveError) {
+      setToast({ type: 'error', text: approveError?.message || 'Failed to approve company.' });
     } finally {
       setApprovingCompanyId('');
+    }
+  };
+
+  const handleAnalyticsFilterChange = async (event) => {
+    const { name, value } = event.target;
+    const nextFilters = { ...analyticsFilters, [name]: value };
+    setAnalyticsFilters(nextFilters);
+    await loadAnalytics(nextFilters);
+  };
+
+  const yearOptions = useMemo(() => {
+    const years = analyticsData.yearWise.map((item) => item.year).filter(Boolean);
+    return years.sort((a, b) => b - a);
+  }, [analyticsData.yearWise]);
+
+  const handleReportFieldChange = (event) => {
+    const { name, value, type, checked } = event.target;
+    setReportForm((prev) => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
+  };
+
+  const handleGenerateReport = async () => {
+    try {
+      setReportLoading(true);
+      const response = await placementService.getReportData({
+        title: reportForm.title,
+        reportType: reportForm.reportType,
+        year: reportForm.year || undefined,
+        companyId: reportForm.companyId || undefined
+      });
+
+      const summary = response?.summary || defaultAnalytics.summary;
+      const yearWise = Array.isArray(response?.yearWise) ? response.yearWise : [];
+      const companyWise = Array.isArray(response?.companyWise) ? response.companyWise : [];
+      const studentDetails = Array.isArray(response?.studentDetails) ? response.studentDetails : [];
+      const reportMeta = response?.report || {};
+
+      if (reportForm.reportFormat === 'excel') {
+        const XLSX = await import('xlsx');
+
+        const summaryRows = [
+          { Metric: 'Total Students', Value: summary.totalStudents || 0 },
+          { Metric: 'Placed Students', Value: summary.placedStudents || 0 },
+          { Metric: 'Unplaced Students', Value: summary.unplacedStudents || 0 },
+          { Metric: 'Placement Rate', Value: `${summary.placementRate || 0}%` },
+          { Metric: 'Average Salary/Stipend', Value: summary.averageSalaryLabel || 'N/A' },
+          { Metric: 'Minimum Salary/Stipend', Value: summary.minimumSalaryLabel || 'N/A' },
+          { Metric: 'Maximum Salary/Stipend', Value: summary.maximumSalaryLabel || 'N/A' }
+        ];
+
+        const studentRows = studentDetails.map((student) => ({
+          'Student Name': student.name || '',
+          Email: student.email || '',
+          Phone: student.phone || '',
+          Institution: student.institution || '',
+          Department: student.department || '',
+          CGPA: student.cgpa ?? '',
+          'Profile Completion (%)': student.profileCompletion ?? '',
+          'Placement Status': student.placementStatus || 'Not Placed',
+          Company: student.companyName || '',
+          'Job Title': student.jobTitle || '',
+          'Salary/Stipend': student.salaryOrStipend || ''
+        }));
+
+        const yearRows = yearWise.map((item) => ({
+          Year: item.year,
+          'Placed Students': item.placedStudents || 0,
+          'Unplaced Students': item.unplacedStudents || 0,
+          'Total Students': item.totalStudents || 0
+        }));
+
+        const companyRows = companyWise.map((item) => ({
+          Company: item.companyName || '',
+          'Placed Students': item.placedStudents || 0,
+          'Average Salary/Stipend': item.averageSalaryLabel || 'N/A'
+        }));
+
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(summaryRows), 'Summary');
+        XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(studentRows), 'Student Details');
+
+        if (reportForm.includeYearTrend && yearRows.length > 0) {
+          XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(yearRows), 'Year Trend');
+        }
+
+        if (reportForm.includeCompanyBreakdown && companyRows.length > 0) {
+          XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(companyRows), 'Company Breakdown');
+        }
+
+        const safeTitle = (reportMeta.title || 'Placement_Report').replace(/[^a-zA-Z0-9_-]/g, '_');
+        XLSX.writeFile(workbook, `${safeTitle}.xlsx`);
+
+        setToast({ type: 'success', text: 'Excel report generated successfully.' });
+        setReportOpen(false);
+        return;
+      }
+
+      const [{ jsPDF }, autoTableModule] = await Promise.all([
+        import('jspdf'),
+        import('jspdf-autotable')
+      ]);
+
+      const autoTable = autoTableModule.default;
+      const doc = new jsPDF();
+
+      doc.setFontSize(18);
+      doc.text(reportMeta.title || 'Placement Summary Report', 14, 18);
+
+      doc.setFontSize(11);
+      doc.text(`Generated: ${new Date(reportMeta.generatedAt || Date.now()).toLocaleString()}`, 14, 26);
+      doc.text(`Year Filter: ${reportForm.year || 'All Years'}`, 14, 32);
+      doc.text(
+        `Company Filter: ${reportForm.companyId
+          ? (analyticsData.companyOptions.find((item) => String(item.id) === String(reportForm.companyId))?.name || 'Selected Company')
+          : 'All Companies'}`,
+        14,
+        38
+      );
+
+      autoTable(doc, {
+        startY: 44,
+        head: [['Metric', 'Value']],
+        body: [
+          ['Total Students', String(summary.totalStudents || 0)],
+          ['Placed Students', String(summary.placedStudents || 0)],
+          ['Unplaced Students', String(summary.unplacedStudents || 0)],
+          ['Placement Rate', `${summary.placementRate || 0}%`],
+          ['Average Salary/Stipend', summary.averageSalaryLabel || 'N/A'],
+          ['Minimum Salary/Stipend', summary.minimumSalaryLabel || 'N/A'],
+          ['Maximum Salary/Stipend', summary.maximumSalaryLabel || 'N/A']
+        ],
+        theme: 'grid',
+        styles: { fontSize: 10 }
+      });
+
+      let nextStartY = doc.lastAutoTable?.finalY ? doc.lastAutoTable.finalY + 8 : 90;
+
+      if (reportForm.includeYearTrend && yearWise.length > 0) {
+        autoTable(doc, {
+          startY: nextStartY,
+          head: [['Year', 'Placed Students', 'Unplaced Students', 'Total Students']],
+          body: yearWise.map((item) => [
+            String(item.year),
+            String(item.placedStudents || 0),
+            String(item.unplacedStudents || 0),
+            String(item.totalStudents || 0)
+          ]),
+          theme: 'striped',
+          styles: { fontSize: 10 }
+        });
+        nextStartY = doc.lastAutoTable?.finalY ? doc.lastAutoTable.finalY + 8 : nextStartY + 40;
+      }
+
+      if (reportForm.includeCompanyBreakdown && companyWise.length > 0) {
+        autoTable(doc, {
+          startY: nextStartY,
+          head: [['Company', 'Placed Students', 'Average Salary/Stipend']],
+          body: companyWise.map((item) => [
+            item.companyName || 'Company',
+            String(item.placedStudents || 0),
+            item.averageSalaryLabel || 'N/A'
+          ]),
+          theme: 'striped',
+          styles: { fontSize: 10 }
+        });
+      }
+
+      const safeTitle = (reportMeta.title || 'Placement_Report').replace(/[^a-zA-Z0-9_-]/g, '_');
+      doc.save(`${safeTitle}.pdf`);
+
+      setToast({ type: 'success', text: 'PDF report generated successfully.' });
+      setReportOpen(false);
+    } catch (reportError) {
+      setToast({ type: 'error', text: reportError?.message || 'Failed to generate report file.' });
+    } finally {
+      setReportLoading(false);
     }
   };
 
@@ -135,6 +370,14 @@ const PlacementDashboard = () => {
     });
   }, [companySearch, recentCompanies]);
 
+  const analyticsCompanyOptions = useMemo(() => {
+    if (analyticsData.companyOptions.length) return analyticsData.companyOptions;
+    return recentCompanies.map((company) => ({
+      id: company._id,
+      name: company.name
+    }));
+  }, [analyticsData.companyOptions, recentCompanies]);
+
   const getJobStatusLabel = (job) => {
     if (job.status === 'expired') return 'Closed';
     if (job.approvalStatus === 'pending') return 'Pending';
@@ -144,8 +387,102 @@ const PlacementDashboard = () => {
   const getCompanyStatusClass = (status) => {
     if (status === 'verified') return 'placement-status verified';
     if (status === 'pending') return 'placement-status pending';
+    if (status === 'rejected') return 'placement-status rejected';
     return 'placement-status unverified';
   };
+
+  const getCompanyStatusLabel = (status) => {
+    if (status === 'rejected') return 'Rejected';
+    if (status === 'verified') return 'Verified';
+    if (status === 'pending') return 'Pending';
+    return 'Unverified';
+  };
+
+  const chartSeries = useMemo(() => {
+    return (analyticsData.yearWise || []).map((item) => {
+      const placed = Number(item.placedStudents || 0);
+      const unplaced = Number(item.unplacedStudents || 0);
+      const total = Number(item.totalStudents || placed + unplaced);
+      const placementRate = total > 0 ? Math.round((placed / total) * 100) : 0;
+
+      if (analyticsGraphType === 'totalVsPlaced') {
+        return {
+          year: item.year,
+          primaryValue: total,
+          secondaryValue: placed
+        };
+      }
+
+      if (analyticsGraphType === 'placementRateTrend') {
+        return {
+          year: item.year,
+          primaryValue: placementRate,
+          secondaryValue: null
+        };
+      }
+
+      return {
+        year: item.year,
+        primaryValue: placed,
+        secondaryValue: unplaced
+      };
+    });
+  }, [analyticsData.yearWise, analyticsGraphType]);
+
+  const maxGraphValue = useMemo(() => {
+    return chartSeries.reduce((maxValue, item) => {
+      const candidateMax = Math.max(item.primaryValue || 0, item.secondaryValue || 0, 1);
+      return Math.max(maxValue, candidateMax);
+    }, 1);
+  }, [chartSeries]);
+
+  const chartMeta = useMemo(() => {
+    if (analyticsGraphType === 'totalVsPlaced') {
+      return {
+        yAxisLabel: 'Students Count',
+        primaryLabel: 'Total Students',
+        secondaryLabel: 'Placed Students',
+        primaryClassName: 'primary-total',
+        secondaryClassName: 'secondary-placed',
+        showSecondary: true,
+        tickSuffix: ''
+      };
+    }
+
+    if (analyticsGraphType === 'placementRateTrend') {
+      return {
+        yAxisLabel: 'Placement Rate',
+        primaryLabel: 'Placement Rate',
+        secondaryLabel: '',
+        primaryClassName: 'primary-rate',
+        secondaryClassName: '',
+        showSecondary: false,
+        tickSuffix: '%'
+      };
+    }
+
+    return {
+      yAxisLabel: 'Students Count',
+      primaryLabel: 'Placed',
+      secondaryLabel: 'Unplaced',
+      primaryClassName: 'primary-placed',
+      secondaryClassName: 'secondary-unplaced',
+      showSecondary: true,
+      tickSuffix: ''
+    };
+  }, [analyticsGraphType]);
+
+  const chartTicks = useMemo(() => {
+    const precision = chartMeta.tickSuffix === '%' ? 0 : 1;
+    const ticks = [];
+
+    for (let step = 4; step >= 0; step -= 1) {
+      const value = (maxGraphValue * step) / 4;
+      ticks.push(Number(value.toFixed(precision)));
+    }
+
+    return ticks;
+  }, [maxGraphValue, chartMeta.tickSuffix]);
 
   return (
     <div className="placement-dashboard-shell text-white">
@@ -302,15 +639,23 @@ const PlacementDashboard = () => {
                           </div>
                           <div className="company-actions">
                             <span className={getCompanyStatusClass(company.verificationStatus)}>
-                              {company.verificationStatus}
+                              {getCompanyStatusLabel(company.verificationStatus)}
                             </span>
                             <button
                               type="button"
                               className="approve-btn"
                               onClick={() => handleApproveCompany(company._id)}
-                              disabled={approvingCompanyId === company._id || company.verificationStatus === 'verified'}
+                              disabled={
+                                approvingCompanyId === company._id
+                                || company.verificationStatus === 'verified'
+                                || company.verificationStatus === 'rejected'
+                              }
                             >
-                              {approvingCompanyId === company._id ? 'Approving...' : 'Approve'}
+                              {company.verificationStatus === 'rejected'
+                                ? 'Rejected'
+                                : approvingCompanyId === company._id
+                                  ? 'Approving...'
+                                  : 'Approve'}
                             </button>
                           </div>
                         </div>
@@ -319,26 +664,290 @@ const PlacementDashboard = () => {
                   )}
                 </div>
               </section>
-
-              <section className="placement-section placement-chart-section">
-                <div className="placement-section-head">
-                  <h3 className="text-white font-bold">Placement Trends</h3>
-                </div>
-                <div className="placement-chart-placeholder">
-                  <div className="chart-bars">
-                    <span style={{ height: '30%' }} />
-                    <span style={{ height: '55%' }} />
-                    <span style={{ height: '45%' }} />
-                    <span style={{ height: '70%' }} />
-                    <span style={{ height: '85%' }} />
-                  </div>
-                  <p className="text-slate-200 font-medium">Analytics chart placeholder (monthly placements vs targets)</p>
-                </div>
-              </section>
             </>
           )}
         </div>
       </div>
+
+      {analyticsOpen && (
+        <div className="placement-modal-overlay" role="dialog" aria-modal="true">
+          <div className="placement-modal placement-analytics-modal">
+            <div className="placement-modal-header">
+              <h3>Placement Analytics</h3>
+              <button
+                type="button"
+                className="placement-modal-close"
+                onClick={() => setAnalyticsOpen(false)}
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="placement-analytics-filters">
+              <div className="placement-modal-field">
+                <label htmlFor="analyticsYear">Year</label>
+                <select id="analyticsYear" name="year" value={analyticsFilters.year} onChange={handleAnalyticsFilterChange}>
+                  <option value="">All Years</option>
+                  {yearOptions.map((year) => (
+                    <option key={year} value={year}>{year}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="placement-modal-field">
+                <label htmlFor="analyticsCompany">Company</label>
+                <select
+                  id="analyticsCompany"
+                  name="companyId"
+                  value={analyticsFilters.companyId}
+                  onChange={handleAnalyticsFilterChange}
+                >
+                  <option value="">All Companies</option>
+                  {analyticsCompanyOptions.map((company) => (
+                    <option key={company.id} value={company.id}>{company.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="placement-modal-field">
+                <label htmlFor="analyticsGraphType">Graph Type</label>
+                <select
+                  id="analyticsGraphType"
+                  name="analyticsGraphType"
+                  value={analyticsGraphType}
+                  onChange={(event) => setAnalyticsGraphType(event.target.value)}
+                >
+                  <option value="placedVsUnplaced">Placed vs Unplaced</option>
+                  <option value="totalVsPlaced">Total Students vs Placed Students</option>
+                  <option value="placementRateTrend">Placement Rate Trend</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="placement-filter-runtime-hint">
+              Filters apply instantly in real time when you change Year or Company.
+            </div>
+
+            {analyticsLoading ? (
+              <p className="placement-loading">Loading analytics...</p>
+            ) : (
+              <>
+                <div className="placement-analytics-summary">
+                  <div className="placement-summary-tile">
+                    <span>Total Students</span>
+                    <strong>{analyticsData.summary.totalStudents || 0}</strong>
+                  </div>
+                  <div className="placement-summary-tile">
+                    <span>Placed Students</span>
+                    <strong>{analyticsData.summary.placedStudents || 0}</strong>
+                  </div>
+                  <div className="placement-summary-tile">
+                    <span>Unplaced Students</span>
+                    <strong>{analyticsData.summary.unplacedStudents || 0}</strong>
+                  </div>
+                  <div className="placement-summary-tile">
+                    <span>Placement Rate</span>
+                    <strong>{analyticsData.summary.placementRate || 0}%</strong>
+                  </div>
+                </div>
+
+                <div className="placement-salary-row">
+                  <div className="placement-salary-pill">Avg: {analyticsData.summary.averageSalaryLabel}</div>
+                  <div className="placement-salary-pill">Min: {analyticsData.summary.minimumSalaryLabel}</div>
+                  <div className="placement-salary-pill">Max: {analyticsData.summary.maximumSalaryLabel}</div>
+                </div>
+
+                <div className="placement-year-graph">
+                  {chartSeries.length === 0 ? (
+                    <p className="empty-text">No year-wise data found for selected filters.</p>
+                  ) : (
+                    <>
+                      <div className="placement-chart-axis-y">
+                        {chartTicks.map((tick, index) => (
+                          <span key={`${tick}-${index}`}>{`${tick}${chartMeta.tickSuffix}`}</span>
+                        ))}
+                      </div>
+                      <div className="placement-chart-main">
+                        <div className="placement-chart-metadata">
+                          <span className="axis-label-y">{chartMeta.yAxisLabel} (Y-axis)</span>
+                          <span className="axis-label-x">Year (X-axis)</span>
+                        </div>
+                        <div className="placement-chart-legend">
+                          <span><i className={`legend-dot ${chartMeta.primaryClassName}`} />{chartMeta.primaryLabel}</span>
+                          {chartMeta.showSecondary && (
+                            <span><i className={`legend-dot ${chartMeta.secondaryClassName}`} />{chartMeta.secondaryLabel}</span>
+                          )}
+                        </div>
+                        <div className="placement-chart-grid-and-bars">
+                          <div className="placement-year-bars-row">
+                            {chartSeries.map((item) => {
+                              const primaryHeight = Math.round(((item.primaryValue || 0) / maxGraphValue) * 100);
+                              const secondaryHeight = Math.round(((item.secondaryValue || 0) / maxGraphValue) * 100);
+
+                              return (
+                                <div key={item.year} className="placement-year-bar-wrap">
+                                  <div className="placement-year-bars">
+                                    <span
+                                      className={chartMeta.primaryClassName}
+                                      style={{ height: `${primaryHeight}%` }}
+                                      title={`${chartMeta.primaryLabel}: ${item.primaryValue || 0}${chartMeta.tickSuffix}`}
+                                    />
+                                    {chartMeta.showSecondary && (
+                                      <span
+                                        className={chartMeta.secondaryClassName}
+                                        style={{ height: `${secondaryHeight}%` }}
+                                        title={`${chartMeta.secondaryLabel}: ${item.secondaryValue || 0}${chartMeta.tickSuffix}`}
+                                      />
+                                    )}
+                                  </div>
+                                  <small>{item.year}</small>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                <div className="placement-analytics-table-wrap">
+                  <h4>Company-wise Placement & Salary/Stipend</h4>
+                  {analyticsData.companyWise.length === 0 ? (
+                    <p className="empty-text">No company-wise data available.</p>
+                  ) : (
+                    <table className="placement-analytics-table">
+                      <thead>
+                        <tr>
+                          <th>Company</th>
+                          <th>Placed Students</th>
+                          <th>Average Salary/Stipend</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {analyticsData.companyWise.map((row) => (
+                          <tr key={row.companyId}>
+                            <td>{row.companyName}</td>
+                            <td>{row.placedStudents || 0}</td>
+                            <td>{row.averageSalaryLabel || 'N/A'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {reportOpen && (
+        <div className="placement-modal-overlay" role="dialog" aria-modal="true">
+          <div className="placement-modal placement-report-modal">
+            <div className="placement-modal-header">
+              <h3>Generate Placement Report</h3>
+              <button
+                type="button"
+                className="placement-modal-close"
+                onClick={() => setReportOpen(false)}
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="placement-modal-form">
+              <div className="placement-modal-field">
+                <label htmlFor="reportTitle">Report Title</label>
+                <input
+                  id="reportTitle"
+                  name="title"
+                  type="text"
+                  value={reportForm.title}
+                  onChange={handleReportFieldChange}
+                  placeholder="Placement Summary Report"
+                />
+              </div>
+
+              <div className="placement-modal-field">
+                <label htmlFor="reportType">Report Type</label>
+                <select id="reportType" name="reportType" value={reportForm.reportType} onChange={handleReportFieldChange}>
+                  <option value="placement-summary">Placement Summary</option>
+                  <option value="salary-summary">Salary/Stipend Summary</option>
+                  <option value="company-performance">Company-wise Performance</option>
+                </select>
+              </div>
+
+              <div className="placement-modal-field">
+                <label htmlFor="reportFormat">Report Format</label>
+                <select id="reportFormat" name="reportFormat" value={reportForm.reportFormat} onChange={handleReportFieldChange}>
+                  <option value="pdf">PDF</option>
+                  <option value="excel">Excel (.xlsx)</option>
+                </select>
+              </div>
+
+              <div className="placement-report-grid">
+                <div className="placement-modal-field">
+                  <label htmlFor="reportYear">Year Filter</label>
+                  <select id="reportYear" name="year" value={reportForm.year} onChange={handleReportFieldChange}>
+                    <option value="">All Years</option>
+                    {yearOptions.map((year) => (
+                      <option key={year} value={year}>{year}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="placement-modal-field">
+                  <label htmlFor="reportCompany">Company Filter</label>
+                  <select id="reportCompany" name="companyId" value={reportForm.companyId} onChange={handleReportFieldChange}>
+                    <option value="">All Companies</option>
+                    {analyticsCompanyOptions.map((company) => (
+                      <option key={company.id} value={company.id}>{company.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="placement-checkbox-row">
+                <label className="placement-checkbox-item">
+                  <input
+                    type="checkbox"
+                    name="includeYearTrend"
+                    checked={reportForm.includeYearTrend}
+                    onChange={handleReportFieldChange}
+                  />
+                  Include year-wise placed vs unplaced trend
+                </label>
+                <label className="placement-checkbox-item">
+                  <input
+                    type="checkbox"
+                    name="includeCompanyBreakdown"
+                    checked={reportForm.includeCompanyBreakdown}
+                    onChange={handleReportFieldChange}
+                  />
+                  Include company-wise salary/stipend breakdown
+                </label>
+              </div>
+
+              <div className="placement-modal-actions">
+                <button type="button" className="placement-modal-cancel" onClick={() => setReportOpen(false)}>
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="placement-modal-save"
+                  onClick={handleGenerateReport}
+                  disabled={reportLoading}
+                >
+                  {reportLoading
+                    ? `Generating ${reportForm.reportFormat === 'excel' ? 'Excel' : 'PDF'}...`
+                    : `Generate ${reportForm.reportFormat === 'excel' ? 'Excel' : 'PDF'} Report`}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

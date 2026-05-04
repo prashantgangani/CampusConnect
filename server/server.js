@@ -13,6 +13,7 @@ import placementRoutes from "./routes/placementRoutes.js";
 import applicationRoutes from "./routes/applicationRoutes.js";
 import quizRoutes from "./routes/quizRoutes.js";
 import resumeRoutes from "./routes/resumeRoutes.js";
+import notificationRoutes from "./routes/notificationRoutes.js";
 
 const app = express();
 
@@ -50,6 +51,7 @@ app.use("/api/placement", placementRoutes);
 app.use("/api/applications", applicationRoutes);
 app.use("/api/quiz", quizRoutes);
 app.use("/api/resume", resumeRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 // test route
 app.get("/api/test", (req, res) => {

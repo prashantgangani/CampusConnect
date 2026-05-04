@@ -4,6 +4,7 @@ import Job from '../models/Job.js';
 import SuggestedJob from '../models/SuggestedJob.js';
 import Application from '../models/Application.js';
 import { deleteResumeFromCloudinary, uploadResumeToCloudinary } from '../config/cloudinary.js';
+import { createUserNotification } from '../utils/notificationHelper.js';
 
 // Get student profile
 export const getStudentProfile = async (req, res) => {
@@ -93,6 +94,16 @@ export const updateStudentProfile = async (req, res) => {
     profile.calculateCompletion();
     
     await profile.save();
+
+    await createUserNotification({
+      recipientId: req.user.id,
+      title: 'Profile Updated',
+      message: 'Your profile was updated successfully.',
+      type: 'profile',
+      metadata: {
+        profileId: profile._id
+      }
+    });
     
     res.status(200).json({
       success: true,

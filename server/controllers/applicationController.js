@@ -6,6 +6,11 @@ import Job from '../models/Job.js';
 import User from '../models/User.js';
 import Question from '../models/Question.js';
 import { seedQuestionsIfEmpty } from '../utils/quizQuestionsSeed.js';
+import {
+  createBulkUserNotifications,
+  createUserNotification,
+  getJobNotificationContext
+} from '../utils/notificationHelper.js';
 
 const normalizeQuizPayload = (quizInput = {}) => {
   if (!quizInput || !Array.isArray(quizInput.questions) || quizInput.questions.length === 0) {
@@ -148,6 +153,21 @@ export const applyForJob = async (req, res) => {
     });
 
     await application.save();
+
+    const companyContext = await User.findById(job.company).select('name companyName').lean();
+    const companyName = job.companyName || companyContext?.companyName || companyContext?.name || 'the company';
+
+    await createUserNotification({
+      recipientId: studentId,
+      title: 'Application Submitted',
+      message: `Your application for ${job.title} at ${companyName} was submitted successfully.`,
+      type: 'application',
+      metadata: {
+        applicationId: application._id,
+        jobId: job._id,
+        status: application.status
+      }
+    });
 
     // Fetch quiz questions for this job
     let quiz = await Quiz.findOne({ jobId });
@@ -436,6 +456,23 @@ export const submitQuiz = async (req, res) => {
 
       await application.save();
 
+      const { jobTitle, companyName } = await getJobNotificationContext(application.jobId);
+      await createUserNotification({
+        recipientId: studentId,
+        title: passed ? 'Company Quiz Passed' : 'Company Quiz Result',
+        message: passed
+          ? `You passed the company quiz for ${jobTitle} at ${companyName}.`
+          : `You did not clear the company quiz for ${jobTitle} at ${companyName}.`,
+        type: 'quiz',
+        metadata: {
+          applicationId: application._id,
+          jobId: application.jobId,
+          percentage,
+          passed,
+          status: application.status
+        }
+      });
+
       return res.status(200).json({
         success: true,
         message: passed
@@ -628,6 +665,23 @@ export const submitQuiz = async (req, res) => {
     application.quizAttemptedAt = new Date();
 
     await application.save();
+
+    const { jobTitle, companyName } = await getJobNotificationContext(application.jobId);
+    await createUserNotification({
+      recipientId: studentId,
+      title: passed ? 'Quiz Passed' : 'Quiz Result',
+      message: passed
+        ? `You passed the screening quiz for ${jobTitle} at ${companyName}.`
+        : `You did not clear the screening quiz for ${jobTitle} at ${companyName}.`,
+      type: 'quiz',
+      metadata: {
+        applicationId: application._id,
+        jobId: application.jobId,
+        percentage,
+        passed,
+        status: application.status
+      }
+    });
 
     res.status(200).json({
       success: true,
@@ -883,7 +937,7 @@ export const reassignCompanyApplicant = async (req, res) => {
     const { id } = req.params;
     const companyId = req.user._id;
 
-    const application = await Application.findById(id).populate('jobId', 'company');
+    const application = await Application.findById(id).populate('jobId', 'company title companyName');
     if (!application) {
       return res.status(404).json({ success: false, message: 'Application not found' });
     }
@@ -896,6 +950,22 @@ export const reassignCompanyApplicant = async (req, res) => {
     application.companyQuizScore = null;
     application.companyQuizAttemptedAt = null;
     await application.save();
+
+    const companyContext = await User.findById(application.jobId.company).select('name companyName').lean();
+    const companyName = application.jobId.companyName || companyContext?.companyName || companyContext?.name || 'the company';
+    const jobTitle = application.jobId.title || 'your application';
+
+    await createUserNotification({
+      recipientId: application.studentId,
+      title: 'Company Quiz Assigned',
+      message: `A company quiz for ${jobTitle} at ${companyName} has been assigned to you.`,
+      type: 'quiz',
+      metadata: {
+        applicationId: application._id,
+        jobId: application.jobId._id,
+        status: application.status
+      }
+    });
 
     return res.status(200).json({ success: true, message: 'Applicant reassigned to company quiz round', data: application });
   } catch (error) {
@@ -1007,7 +1077,7 @@ export const deleteCompanyApplicantQuiz = async (req, res) => {
     const { jobId } = req.params;
     const companyId = req.user._id;
 
-    const job = await Job.findById(jobId).select('company');
+    const job = await Job.findById(jobId).select('company title companyName');
     if (!job) {
       return res.status(404).json({ success: false, message: 'Job not found' });
     }
@@ -1083,6 +1153,21 @@ export const reassignCompanyQuizToStudent = async (req, res) => {
     application.companyQuizAttemptedAt = null;
     await application.save();
 
+    const companyContext = await User.findById(job.company).select('name companyName').lean();
+    const companyName = job.companyName || companyContext?.companyName || companyContext?.name || 'the company';
+
+    await createUserNotification({
+      recipientId: student._id,
+      title: 'Company Quiz Reassigned',
+      message: `A company quiz for ${job.title || 'your application'} at ${companyName} was reassigned to you.`,
+      type: 'quiz',
+      metadata: {
+        applicationId: application._id,
+        jobId: job._id,
+        status: application.status
+      }
+    });
+
     return res.status(200).json({
       success: true,
       message: `Quiz reassigned successfully to ${studentEmail}`,
@@ -1099,7 +1184,7 @@ export const upsertCompanyApplicantQuiz = async (req, res) => {
     const { jobId } = req.params;
     const companyId = req.user._id;
 
-    const job = await Job.findById(jobId).select('_id company title');
+    const job = await Job.findById(jobId).select('_id company title companyName');
     if (!job) {
       return res.status(404).json({
         success: false,
@@ -1176,6 +1261,13 @@ export const upsertCompanyApplicantQuiz = async (req, res) => {
       }
     );
 
+    const affectedApplications = await Application.find({
+      jobId: job._id,
+      status: 'mentor_approved'
+    })
+      .select('_id studentId')
+      .lean();
+
     await Application.updateMany(
       {
         jobId: job._id,
@@ -1187,6 +1279,25 @@ export const upsertCompanyApplicantQuiz = async (req, res) => {
         }
       }
     );
+
+    if (affectedApplications.length > 0) {
+      const companyContext = await User.findById(job.company).select('name companyName').lean();
+      const companyName = job.companyName || companyContext?.companyName || companyContext?.name || 'the company';
+
+      await createBulkUserNotifications(
+        affectedApplications.map((application) => ({
+          recipientId: application.studentId,
+          title: 'Company Quiz Assigned',
+          message: `You are now eligible for the company quiz for ${job.title} at ${companyName}.`,
+          type: 'quiz',
+          metadata: {
+            applicationId: application._id,
+            jobId: job._id,
+            status: 'company_quiz_pending'
+          }
+        }))
+      );
+    }
 
     return res.status(200).json({
       success: true,
@@ -1208,7 +1319,7 @@ export const hireApplicationByCompany = async (req, res) => {
     const { id } = req.params;
     const companyId = req.user._id;
 
-    const application = await Application.findById(id).populate('jobId', 'company');
+    const application = await Application.findById(id).populate('jobId', 'company title companyName');
     if (!application) {
       return res.status(404).json({
         success: false,
@@ -1233,6 +1344,19 @@ export const hireApplicationByCompany = async (req, res) => {
     application.status = 'shortlisted';
     await application.save();
 
+    const { jobTitle, companyName } = await getJobNotificationContext(application.jobId?._id || application.jobId);
+    await createUserNotification({
+      recipientId: application.studentId,
+      title: 'Application Shortlisted',
+      message: `You have been shortlisted for ${jobTitle} at ${companyName}.`,
+      type: 'selection',
+      metadata: {
+        applicationId: application._id,
+        jobId: application.jobId?._id || application.jobId,
+        status: application.status
+      }
+    });
+
     return res.status(200).json({
       success: true,
       message: 'Student moved to Interviews section',
@@ -1253,7 +1377,7 @@ export const selectApplicationFromInterview = async (req, res) => {
     const { id } = req.params;
     const companyId = req.user._id;
 
-    const application = await Application.findById(id).populate('jobId', 'company');
+    const application = await Application.findById(id).populate('jobId', 'company title companyName');
     if (!application) {
       return res.status(404).json({
         success: false,
@@ -1278,6 +1402,19 @@ export const selectApplicationFromInterview = async (req, res) => {
     application.status = 'selected';
     await application.save();
 
+    const { jobTitle, companyName } = await getJobNotificationContext(application.jobId?._id || application.jobId);
+    await createUserNotification({
+      recipientId: application.studentId,
+      title: 'Congratulations! You Are Selected',
+      message: `You have been selected for ${jobTitle} at ${companyName}.`,
+      type: 'selection',
+      metadata: {
+        applicationId: application._id,
+        jobId: application.jobId?._id || application.jobId,
+        status: application.status
+      }
+    });
+
     return res.status(200).json({
       success: true,
       message: 'Student selected for position',
@@ -1298,7 +1435,7 @@ export const rejectApplicationByCompany = async (req, res) => {
     const { id } = req.params;
     const companyId = req.user._id;
 
-    const application = await Application.findById(id).populate('jobId', 'company');
+    const application = await Application.findById(id).populate('jobId', 'company title companyName');
     if (!application) {
       return res.status(404).json({
         success: false,
@@ -1322,6 +1459,19 @@ export const rejectApplicationByCompany = async (req, res) => {
 
     application.status = 'rejected';
     await application.save();
+
+    const { jobTitle, companyName } = await getJobNotificationContext(application.jobId?._id || application.jobId);
+    await createUserNotification({
+      recipientId: application.studentId,
+      title: 'Application Update',
+      message: `Your application for ${jobTitle} at ${companyName} was not selected by the company.`,
+      type: 'application',
+      metadata: {
+        applicationId: application._id,
+        jobId: application.jobId?._id || application.jobId,
+        status: application.status
+      }
+    });
 
     return res.status(200).json({
       success: true,
@@ -1370,6 +1520,21 @@ export const approveApplicationByMentor = async (req, res) => {
     application.mentorApprovedAt = new Date();
     await application.save();
 
+    const { jobTitle, companyName } = await getJobNotificationContext(application.jobId);
+    await createUserNotification({
+      recipientId: application.studentId,
+      title: shouldMoveToCompanyQuiz ? 'Mentor Approved: Company Quiz Next' : 'Mentor Approved',
+      message: shouldMoveToCompanyQuiz
+        ? `Your application for ${jobTitle} at ${companyName} is mentor-approved. Please attempt the company quiz.`
+        : `Your application for ${jobTitle} at ${companyName} is approved by your mentor.`,
+      type: shouldMoveToCompanyQuiz ? 'quiz' : 'application',
+      metadata: {
+        applicationId: application._id,
+        jobId: application.jobId,
+        status: application.status
+      }
+    });
+
     return res.status(200).json({
       success: true,
       message: shouldMoveToCompanyQuiz
@@ -1410,6 +1575,19 @@ export const rejectApplicationByMentor = async (req, res) => {
     application.mentorId = req.user._id;
     application.mentorApprovedAt = null;
     await application.save();
+
+    const { jobTitle, companyName } = await getJobNotificationContext(application.jobId);
+    await createUserNotification({
+      recipientId: application.studentId,
+      title: 'Application Rejected by Mentor',
+      message: `Your application for ${jobTitle} at ${companyName} was rejected during mentor review.`,
+      type: 'application',
+      metadata: {
+        applicationId: application._id,
+        jobId: application.jobId,
+        status: application.status
+      }
+    });
 
     return res.status(200).json({
       success: true,

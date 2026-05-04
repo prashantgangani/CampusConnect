@@ -29,6 +29,20 @@ const placementService = {
   updateProfile: async (profileData) => {
     const response = await api.put('/placement/profile', profileData);
     return response.data;
+  },
+
+  getAnalytics: async (filters = {}) => {
+    const params = new URLSearchParams();
+    if (filters.year) params.set('year', String(filters.year));
+    if (filters.companyId) params.set('companyId', String(filters.companyId));
+
+    const response = await api.get(`/placement/analytics${params.toString() ? `?${params.toString()}` : ''}`);
+    return response.data;
+  },
+
+  getReportData: async (payload = {}) => {
+    const response = await api.post('/placement/report-data', payload);
+    return response.data;
   }
 };
 
