@@ -46,6 +46,77 @@ export const createBulkUserNotifications = async (items = []) => {
   }
 };
 
+export const getPlacementUsers = async (placementCellIds = []) => {
+  try {
+    const ids = Array.isArray(placementCellIds)
+      ? [...new Set(placementCellIds.map((id) => String(id)).filter(Boolean))]
+      : [];
+
+    const query = ids.length
+      ? { _id: { $in: ids }, role: 'placement' }
+      : { role: 'placement' };
+
+    return await User.find(query).select('_id name email institution').lean();
+  } catch (error) {
+    console.error('Failed to fetch placement users:', error.message);
+    return [];
+  }
+};
+
+export const notifyPlacementUsers = async ({
+  placementCellIds = [],
+  title,
+  message,
+  type = 'system',
+  metadata = {}
+}) => {
+  try {
+    const placementUsers = await getPlacementUsers(placementCellIds);
+    if (!placementUsers.length) return [];
+
+    return await createBulkUserNotifications(
+      placementUsers.map((user) => ({
+        recipientId: user._id,
+        title,
+        message,
+        type,
+        metadata
+      }))
+    );
+  } catch (error) {
+    console.error('Failed to notify placement users:', error.message);
+    return [];
+  }
+};
+
+export const notifyPlacementUsersForJob = async ({
+  job,
+  title,
+  message,
+  type = 'job',
+  metadata = {}
+}) => {
+  try {
+    const placementCellIds = Array.isArray(job?.allowedPlacementCells)
+      ? job.allowedPlacementCells.map((cell) => String(cell?._id || cell)).filter(Boolean)
+      : [];
+
+    return await notifyPlacementUsers({
+      placementCellIds,
+      title,
+      message,
+      type,
+      metadata: {
+        jobId: job?._id,
+        ...metadata
+      }
+    });
+  } catch (error) {
+    console.error('Failed to notify placement users for job:', error.message);
+    return [];
+  }
+};
+
 export const getJobNotificationContext = async (jobId) => {
   try {
     if (!jobId) {

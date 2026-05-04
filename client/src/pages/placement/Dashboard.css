@@ -101,8 +101,154 @@
   gap: 10px;
 }
 
-.notification {
-  font-size: 20px;
+.placement-notification-wrapper {
+  position: relative;
+  z-index: 1300;
+}
+
+.placement-notification-bell {
+  font-size: 18px;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 8px;
+  transition: background 0.2s;
+  border: 1px solid #334155;
+  background: #111827;
+  color: #f8fafc;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  min-height: 40px;
+  position: relative;
+}
+
+.placement-notification-bell:hover {
+  background: #1f2937;
+}
+
+.placement-notification-count {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background: #ef4444;
+  color: #ffffff;
+  border-radius: 999px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  font-size: 10px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #111827;
+}
+
+.placement-notification-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: min(340px, calc(100vw - 32px));
+  max-height: 360px;
+  background: #071425;
+  border: 1px solid rgba(96, 165, 250, 0.28);
+  border-radius: 14px;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.45);
+  overflow: hidden;
+  z-index: 1200;
+}
+
+.placement-notification-dropdown-header {
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(96, 165, 250, 0.18);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.placement-notification-dropdown-header h4 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: #f8fafc;
+}
+
+.placement-notification-action-link {
+  border: none;
+  background: transparent;
+  color: #5eead4;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.placement-notification-action-link:disabled {
+  color: #64748b;
+  cursor: not-allowed;
+}
+
+.placement-notification-dropdown-list {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.placement-notification-item {
+  width: 100%;
+  border: none;
+  background: #071425;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  text-align: left;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+  cursor: pointer;
+}
+
+.placement-notification-item:hover {
+  background: #0b1f36;
+}
+
+.placement-notification-item.unread {
+  background: rgba(15, 118, 110, 0.14);
+}
+
+.placement-notification-item-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  background: rgba(96, 165, 250, 0.16);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.placement-notification-item-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.placement-notification-item-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #f8fafc;
+}
+
+.placement-notification-item-message {
+  font-size: 12px;
+  color: #cbd5e1;
+  line-height: 1.4;
+}
+
+.placement-notification-item-time {
+  font-size: 11px;
+  color: #94a3b8;
+  margin-top: 2px;
 }
 
 .profile-btn,
@@ -246,6 +392,12 @@
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
+}
+
+.notification-empty {
+  padding: 14px 0 2px;
+  color: #94a3b8;
+  font-size: 13px;
 }
 
 .placement-action-card {
@@ -600,26 +752,37 @@
   background: rgba(3, 19, 47, 0.75);
   padding: 16px 14px;
   min-height: 220px;
-  display: flex;
-  align-items: stretch;
-  gap: 10px;
-  overflow-x: auto;
+  display: block;
+  overflow: hidden; /* contain overflow inside chart area */
+}
+
+.placement-year-graph {
+  position: relative;
 }
 
 .placement-chart-axis-y {
-  min-width: 30px;
-  display: grid;
-  align-content: space-between;
-  justify-items: end;
+  flex: 0 0 56px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-end;
   color: #94a3b8;
   font-size: 11px;
-  padding: 8px 0 20px;
+  height: 140px;
+  padding: 0 6px 0 0;
 }
 
 .placement-chart-main {
-  flex: 1;
-  min-width: 360px;
-  display: grid;
+  flex: 1 1 auto;
+  min-width: 0; /* allow shrinking inside modal */
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.placement-plot-row {
+  display: flex;
+  align-items: flex-end;
   gap: 8px;
 }
 
@@ -676,9 +839,15 @@
 .placement-chart-grid-and-bars {
   border: 1px dashed rgba(96, 165, 250, 0.2);
   border-radius: 10px;
-  padding: 10px 8px;
+  padding: 8px 8px 8px;
   background: rgba(2, 12, 30, 0.5);
+  overflow-x: auto; /* internal scrolling when there are many years */
+  overflow-y: hidden;
+  max-width: 100%;
+  flex: 1;
 }
+
+/* removed inner dashed wrapper to keep a single dashed border */
 
 .axis-label-y,
 .axis-label-x {
@@ -687,21 +856,45 @@
   font-size: 11px;
 }
 
+.chart-x-label {
+  text-align: center;
+  color: #94a3b8;
+  font-size: 12px;
+  margin-top: 8px;
+}
+
 .placement-year-bars-row {
-  height: 150px;
+  height: 140px;
   display: flex;
   align-items: flex-end;
-  gap: 16px;
-  justify-content: space-evenly;
+  gap: 12px;
+  padding: 0 4px;
 }
 
 .placement-year-bar-wrap {
-  min-width: 58px;
+  flex: 0 0 56px;
+  min-width: 48px;
   text-align: center;
 }
 
+.placement-year-axis-row {
+  display: flex;
+  gap: 12px;
+  padding: 6px 4px 4px;
+  margin-top: 8px;
+  align-items: center;
+}
+
+.placement-year-axis-row small {
+  flex: 0 0 56px;
+  min-width: 48px;
+  text-align: center;
+  color: #cbd5e1;
+  font-size: 12px;
+}
+
 .placement-year-bars {
-  height: 145px;
+  height: 140px;
   display: flex;
   justify-content: center;
   align-items: flex-end;
@@ -709,9 +902,16 @@
 }
 
 .placement-year-bars span {
-  width: 16px;
+  width: 14px;
   border-radius: 6px 6px 0 0;
-  min-height: 2px;
+  min-height: 0;
+  max-height: 100%;
+}
+
+/* Align internal grid height so Y-axis ticks match bars */
+.placement-chart-grid-and-bars .placement-year-bars-row,
+.placement-chart-grid-and-bars .placement-year-bars {
+  height: 140px;
 }
 
 .placement-year-bars .primary-placed,
@@ -729,11 +929,6 @@
 
 .placement-year-bars .primary-rate {
   background: linear-gradient(180deg, #fbbf24, #f59e0b);
-}
-
-.placement-year-bar-wrap small {
-  color: #cbd5e1;
-  font-size: 12px;
 }
 
 .placement-analytics-table-wrap {

@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import placementService from '../../services/placementService';
+import notificationApiService from '../../services/notificationApiService';
 import PlacementProfileModal from '../../components/placement/PlacementProfileModal';
 import StatCard from '../../components/placement/StatCard';
 import ActionCard from '../../components/placement/ActionCard';
@@ -42,6 +43,10 @@ const PlacementDashboard = () => {
   const [profile, setProfile] = useState(null);
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
 
   const [analyticsOpen, setAnalyticsOpen] = useState(false);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
@@ -63,6 +68,9 @@ const PlacementDashboard = () => {
     includeYearTrend: true,
     includeCompanyBreakdown: true
   });
+
+  const chartRef = useRef(null);
+  const notificationPanelRef = useRef(null);
 
   const loadPlacementData = useCallback(async () => {
     try {
@@ -101,9 +109,50 @@ const PlacementDashboard = () => {
     }
   }, []);
 
+  const fetchNotifications = useCallback(async () => {
+    try {
+      setNotificationsLoading(true);
+      const response = await notificationApiService.getMyNotifications(20);
+      setNotifications(Array.isArray(response?.data) ? response.data : []);
+      setUnreadNotificationCount(Number(response?.unreadCount) || 0);
+    } catch (notificationError) {
+      console.error('Error fetching placement notifications:', notificationError);
+    } finally {
+      setNotificationsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     loadPlacementData();
   }, [loadPlacementData]);
+
+  useEffect(() => {
+    fetchNotifications();
+  }, [fetchNotifications]);
+
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      fetchNotifications();
+    }, 30000);
+
+    return () => clearInterval(intervalId);
+  }, [fetchNotifications]);
+
+  useEffect(() => {
+    const handleOutsideClick = (event) => {
+      if (!notificationPanelRef.current?.contains(event.target)) {
+        setIsNotificationOpen(false);
+      }
+    };
+
+    if (isNotificationOpen) {
+      document.addEventListener('mousedown', handleOutsideClick);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+    };
+  }, [isNotificationOpen]);
 
   useEffect(() => {
     if (!toast) return undefined;
@@ -168,6 +217,137 @@ const PlacementDashboard = () => {
     }
   };
 
+  const handleToggleNotifications = async () => {
+    const nextOpen = !isNotificationOpen;
+    setIsNotificationOpen(nextOpen);
+
+    if (nextOpen) {
+      await fetchNotifications();
+    }
+  };
+
+  const getNotificationIcon = (type) => {
+    const iconMap = {
+      job: '💼',
+      selection: '🎉',
+      report: '🧾',
+      application: '📩',
+      profile: '👤',
+      quiz: '📝',
+      system: '🔔'
+    };
+
+    return iconMap[type] || '🔔';
+  };
+
+  const formatNotificationTime = (timestamp) => {
+    if (!timestamp) return '';
+
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMinutes = Math.floor((now - date) / (1000 * 60));
+
+    if (diffMinutes < 1) return 'just now';
+    if (diffMinutes < 60) return `${diffMinutes}m ago`;
+
+    const diffHours = Math.floor(diffMinutes / 60);
+    if (diffHours < 24) return `${diffHours}h ago`;
+
+    const diffDays = Math.floor(diffHours / 24);
+    if (diffDays < 7) return `${diffDays}d ago`;
+
+    return date.toLocaleDateString();
+  };
+
+  const handleMarkNotificationRead = async (notificationId, isRead) => {
+    try {
+      if (isRead) return;
+
+      await notificationApiService.markAsRead(notificationId);
+
+      setNotifications((prev) => prev.map((notification) => (
+        notification._id === notificationId
+          ? { ...notification, isRead: true, readAt: new Date().toISOString() }
+          : notification
+      )));
+      setUnreadNotificationCount((prev) => Math.max(0, prev - 1));
+    } catch (notificationError) {
+      console.error('Error marking placement notification read:', notificationError);
+    }
+  };
+
+  const handleMarkAllNotificationsRead = async () => {
+    try {
+      await notificationApiService.markAllAsRead();
+      setNotifications((prev) => prev.map((notification) => ({
+        ...notification,
+        isRead: true,
+        readAt: new Date().toISOString()
+      })));
+      setUnreadNotificationCount(0);
+    } catch (notificationError) {
+      console.error('Error marking all placement notifications read:', notificationError);
+    }
+  };
+
+  const renderNotificationBell = () => (
+    <div className="placement-notification-wrapper" ref={notificationPanelRef}>
+      <button
+        type="button"
+        className="placement-notification-bell"
+        onClick={handleToggleNotifications}
+        aria-label="Open notifications"
+      >
+        <span>🔔</span>
+        {unreadNotificationCount > 0 && (
+          <span className="placement-notification-count">
+            {unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}
+          </span>
+        )}
+      </button>
+
+      {isNotificationOpen && (
+        <div className="placement-notification-dropdown" role="menu" aria-label="Notification history">
+          <div className="placement-notification-dropdown-header">
+            <h4>Notifications</h4>
+            <button
+              type="button"
+              className="placement-notification-action-link"
+              onClick={handleMarkAllNotificationsRead}
+              disabled={unreadNotificationCount === 0}
+            >
+              Mark all read
+            </button>
+          </div>
+
+          <div className="placement-notification-dropdown-list">
+            {notificationsLoading ? (
+              <p className="notification-empty">Loading notifications...</p>
+            ) : notifications.length === 0 ? (
+              <p className="notification-empty">No notifications yet.</p>
+            ) : (
+              notifications.map((notification) => (
+                <button
+                  key={notification._id}
+                  type="button"
+                  className={`placement-notification-item ${notification.isRead ? '' : 'unread'}`}
+                  onClick={() => handleMarkNotificationRead(notification._id, notification.isRead)}
+                >
+                  <span className="placement-notification-item-icon">{getNotificationIcon(notification.type)}</span>
+                  <span className="placement-notification-item-content">
+                    <span className="placement-notification-item-title">{notification.title}</span>
+                    <span className="placement-notification-item-message">{notification.message}</span>
+                    <span className="placement-notification-item-time">{formatNotificationTime(notification.createdAt)}</span>
+                  </span>
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
   const handleApproveCompany = async (companyId) => {
     try {
       setApprovingCompanyId(companyId);
@@ -216,6 +396,8 @@ const PlacementDashboard = () => {
       const companyWise = Array.isArray(response?.companyWise) ? response.companyWise : [];
       const studentDetails = Array.isArray(response?.studentDetails) ? response.studentDetails : [];
       const reportMeta = response?.report || {};
+
+      await fetchNotifications();
 
       if (reportForm.reportFormat === 'excel') {
         const XLSX = await import('xlsx');
@@ -347,6 +529,147 @@ const PlacementDashboard = () => {
         });
       }
 
+      // Capture the chart area and embed into PDF if requested
+      if (reportForm.includeYearTrend) {
+        try {
+          const html2canvasModule = await import('html2canvas');
+          const html2canvas = html2canvasModule.default || html2canvasModule;
+
+          // Create or clone a chart DOM node so capture works even if analytics modal is closed
+          let tempEl = null;
+          if (chartRef?.current) {
+            tempEl = chartRef.current.cloneNode(true);
+          } else {
+            // build a full chart clone (including axis ticks and year labels)
+            tempEl = document.createElement('div');
+            tempEl.className = 'placement-year-graph';
+
+            const chartMain = document.createElement('div');
+            chartMain.className = 'placement-chart-main';
+
+            // legend
+            const legend = document.createElement('div');
+            legend.className = 'placement-chart-legend';
+            const primSpan = document.createElement('span');
+            const primDot = document.createElement('i');
+            primDot.className = `legend-dot ${chartMeta.primaryClassName}`;
+            primSpan.appendChild(primDot);
+            primSpan.appendChild(document.createTextNode(chartMeta.primaryLabel));
+            legend.appendChild(primSpan);
+            if (chartMeta.showSecondary) {
+              const secSpan = document.createElement('span');
+              const secDot = document.createElement('i');
+              secDot.className = `legend-dot ${chartMeta.secondaryClassName}`;
+              secSpan.appendChild(secDot);
+              secSpan.appendChild(document.createTextNode(chartMeta.secondaryLabel));
+              legend.appendChild(secSpan);
+            }
+
+            chartMain.appendChild(legend);
+
+            const plotRow = document.createElement('div');
+            plotRow.className = 'placement-plot-row';
+
+            // Y axis ticks
+            const yAxis = document.createElement('div');
+            yAxis.className = 'placement-chart-axis-y';
+            (chartTicks || []).forEach((tick) => {
+              const span = document.createElement('span');
+              span.textContent = `${tick}${chartMeta.tickSuffix || ''}`;
+              yAxis.appendChild(span);
+            });
+            plotRow.appendChild(yAxis);
+
+            // grid and bars
+            const grid = document.createElement('div');
+            grid.className = 'placement-chart-grid-and-bars';
+
+            const barsRow = document.createElement('div');
+            barsRow.className = 'placement-year-bars-row';
+            (chartSeries || []).forEach((item) => {
+              const wrap = document.createElement('div');
+              wrap.className = 'placement-year-bar-wrap';
+              const bars = document.createElement('div');
+              bars.className = 'placement-year-bars';
+
+              const p = document.createElement('span');
+              p.className = chartMeta.primaryClassName;
+              const pH = Math.round(((item.primaryValue || 0) / Math.max(1, chartTop)) * 100);
+              p.style.height = `${pH}%`;
+              bars.appendChild(p);
+
+              if (chartMeta.showSecondary) {
+                const s = document.createElement('span');
+                s.className = chartMeta.secondaryClassName;
+                const sH = Math.round(((item.secondaryValue || 0) / Math.max(1, chartTop)) * 100);
+                s.style.height = `${sH}%`;
+                bars.appendChild(s);
+              }
+
+              wrap.appendChild(bars);
+              barsRow.appendChild(wrap);
+            });
+
+            // year labels row
+            const yearRow = document.createElement('div');
+            yearRow.className = 'placement-year-axis-row';
+            (chartSeries || []).forEach((item) => {
+              const small = document.createElement('small');
+              small.textContent = String(item.year);
+              yearRow.appendChild(small);
+            });
+
+            grid.appendChild(barsRow);
+            plotRow.appendChild(grid);
+
+            // put year labels outside the dashed grid so they appear below the axis line
+            chartMain.appendChild(yearRow);
+            chartMain.appendChild(plotRow);
+
+            // put year labels outside the dashed grid so they appear below the axis line
+            chartMain.appendChild(yearRow);
+
+            const xLabel = document.createElement('div');
+            xLabel.className = 'chart-x-label';
+            xLabel.textContent = 'X axis';
+            chartMain.appendChild(xLabel);
+
+            tempEl.appendChild(chartMain);
+          }
+
+          // position off-screen for capture
+          tempEl.style.position = 'fixed';
+          tempEl.style.left = '-20000px';
+          tempEl.style.top = '0';
+          tempEl.style.background = 'transparent';
+          document.body.appendChild(tempEl);
+
+          // expand width so all bars are visible
+          tempEl.style.width = `${tempEl.scrollWidth || Math.max(600, (chartSeries || []).length * 60)}px`;
+
+          const canvas = await html2canvas(tempEl, { backgroundColor: null, scale: 2 });
+
+          // remove temp element
+          document.body.removeChild(tempEl);
+
+          const imgData = canvas.toDataURL('image/png');
+          const pageWidth = doc.internal.pageSize.getWidth();
+          const margin = 14;
+          const imgWidth = pageWidth - margin * 2;
+          const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+          if (nextStartY + imgHeight > doc.internal.pageSize.getHeight() - 20) {
+            doc.addPage();
+            nextStartY = 14;
+          }
+
+          doc.addImage(imgData, 'PNG', margin, nextStartY, imgWidth, imgHeight);
+          nextStartY += imgHeight + 8;
+        } catch (captureErr) {
+          // ignore capture errors but continue saving PDF
+        }
+      }
+
       const safeTitle = (reportMeta.title || 'Placement_Report').replace(/[^a-zA-Z0-9_-]/g, '_');
       doc.save(`${safeTitle}.pdf`);
 
@@ -473,16 +796,24 @@ const PlacementDashboard = () => {
   }, [analyticsGraphType]);
 
   const chartTicks = useMemo(() => {
-    const precision = chartMeta.tickSuffix === '%' ? 0 : 1;
-    const ticks = [];
-
-    for (let step = 4; step >= 0; step -= 1) {
-      const value = (maxGraphValue * step) / 4;
-      ticks.push(Number(value.toFixed(precision)));
+    // Compute a "topTick" to normalize bar heights and produce human-friendly ticks
+    if (chartMeta.tickSuffix === '%') {
+      return [100, 75, 50, 25, 0];
     }
 
+    const rawMax = Math.max(...chartSeries.map((s) => Math.max(s.primaryValue || 0, s.secondaryValue || 0)), 0);
+    // ensure at least 4 steps so ticks show 4..0 for small values
+    const top = Math.max(4, Math.ceil(rawMax));
+    const ticks = [];
+    for (let i = top; i >= 0; i -= 1) ticks.push(i);
     return ticks;
-  }, [maxGraphValue, chartMeta.tickSuffix]);
+  }, [chartSeries, chartMeta.tickSuffix]);
+
+  const chartTop = useMemo(() => {
+    if (chartMeta.tickSuffix === '%') return 100;
+    const rawMax = Math.max(...chartSeries.map((s) => Math.max(s.primaryValue || 0, s.secondaryValue || 0)), 0);
+    return Math.max(4, Math.ceil(rawMax));
+  }, [chartSeries, chartMeta.tickSuffix]);
 
   return (
     <div className="placement-dashboard-shell text-white">
@@ -512,7 +843,7 @@ const PlacementDashboard = () => {
           </div>
 
           <div className="placement-nav-right">
-            <span className="notification">🔔</span>
+            {renderNotificationBell()}
             <button
               type="button"
               onClick={openProfileModal}
@@ -757,55 +1088,58 @@ const PlacementDashboard = () => {
                   <div className="placement-salary-pill">Max: {analyticsData.summary.maximumSalaryLabel}</div>
                 </div>
 
-                <div className="placement-year-graph">
+                <div className="placement-year-graph" ref={chartRef}>
                   {chartSeries.length === 0 ? (
                     <p className="empty-text">No year-wise data found for selected filters.</p>
                   ) : (
                     <>
-                      <div className="placement-chart-axis-y">
-                        {chartTicks.map((tick, index) => (
-                          <span key={`${tick}-${index}`}>{`${tick}${chartMeta.tickSuffix}`}</span>
-                        ))}
-                      </div>
                       <div className="placement-chart-main">
-                        <div className="placement-chart-metadata">
-                          <span className="axis-label-y">{chartMeta.yAxisLabel} (Y-axis)</span>
-                          <span className="axis-label-x">Year (X-axis)</span>
-                        </div>
                         <div className="placement-chart-legend">
                           <span><i className={`legend-dot ${chartMeta.primaryClassName}`} />{chartMeta.primaryLabel}</span>
                           {chartMeta.showSecondary && (
                             <span><i className={`legend-dot ${chartMeta.secondaryClassName}`} />{chartMeta.secondaryLabel}</span>
                           )}
                         </div>
-                        <div className="placement-chart-grid-and-bars">
-                          <div className="placement-year-bars-row">
-                            {chartSeries.map((item) => {
-                              const primaryHeight = Math.round(((item.primaryValue || 0) / maxGraphValue) * 100);
-                              const secondaryHeight = Math.round(((item.secondaryValue || 0) / maxGraphValue) * 100);
+                        <div className="placement-plot-row">
+                          <div className="placement-chart-axis-y">
+                            {chartTicks.map((tick, index) => (
+                              <span key={`${tick}-${index}`}>{`${tick}${chartMeta.tickSuffix}`}</span>
+                            ))}
+                          </div>
+                          <div className="placement-chart-grid-and-bars">
+                              <div className="placement-year-bars-row">
+                                {chartSeries.map((item) => {
+                                const primaryHeight = Math.round(((item.primaryValue || 0) / chartTop) * 100);
+                                const secondaryHeight = Math.round(((item.secondaryValue || 0) / chartTop) * 100);
 
-                              return (
-                                <div key={item.year} className="placement-year-bar-wrap">
-                                  <div className="placement-year-bars">
-                                    <span
-                                      className={chartMeta.primaryClassName}
-                                      style={{ height: `${primaryHeight}%` }}
-                                      title={`${chartMeta.primaryLabel}: ${item.primaryValue || 0}${chartMeta.tickSuffix}`}
-                                    />
-                                    {chartMeta.showSecondary && (
+                                return (
+                                  <div key={item.year} className="placement-year-bar-wrap">
+                                    <div className="placement-year-bars">
                                       <span
-                                        className={chartMeta.secondaryClassName}
-                                        style={{ height: `${secondaryHeight}%` }}
-                                        title={`${chartMeta.secondaryLabel}: ${item.secondaryValue || 0}${chartMeta.tickSuffix}`}
+                                        className={chartMeta.primaryClassName}
+                                        style={{ height: `${primaryHeight}%` }}
+                                        title={`${chartMeta.primaryLabel}: ${item.primaryValue || 0}${chartMeta.tickSuffix}`}
                                       />
-                                    )}
+                                      {chartMeta.showSecondary && (
+                                        <span
+                                          className={chartMeta.secondaryClassName}
+                                          style={{ height: `${secondaryHeight}%` }}
+                                          title={`${chartMeta.secondaryLabel}: ${item.secondaryValue || 0}${chartMeta.tickSuffix}`}
+                                        />
+                                      )}
+                                    </div>
                                   </div>
-                                  <small>{item.year}</small>
-                                </div>
-                              );
-                            })}
+                                );
+                              })}
+                              </div>
+                          </div>
+                          <div className="placement-year-axis-row">
+                            {chartSeries.map((item) => (
+                              <small key={`year-label-${item.year}`}>{item.year}</small>
+                            ))}
                           </div>
                         </div>
+                        <div className="chart-x-label">X axis</div>
                       </div>
                     </>
                   )}

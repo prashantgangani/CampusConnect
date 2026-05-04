@@ -9,7 +9,8 @@ import { seedQuestionsIfEmpty } from '../utils/quizQuestionsSeed.js';
 import {
   createBulkUserNotifications,
   createUserNotification,
-  getJobNotificationContext
+  getJobNotificationContext,
+  notifyPlacementUsersForJob
 } from '../utils/notificationHelper.js';
 
 const normalizeQuizPayload = (quizInput = {}) => {
@@ -937,7 +938,7 @@ export const reassignCompanyApplicant = async (req, res) => {
     const { id } = req.params;
     const companyId = req.user._id;
 
-    const application = await Application.findById(id).populate('jobId', 'company title companyName');
+    const application = await Application.findById(id).populate('jobId', 'company title companyName allowedPlacementCells');
     if (!application) {
       return res.status(404).json({ success: false, message: 'Application not found' });
     }
@@ -1357,6 +1358,17 @@ export const hireApplicationByCompany = async (req, res) => {
       }
     });
 
+    await notifyPlacementUsersForJob({
+      job: application.jobId,
+      title: 'Applicant Shortlisted',
+      message: `${jobTitle} at ${companyName} has a shortlisted applicant.`,
+      type: 'selection',
+      metadata: {
+        applicationId: application._id,
+        status: application.status
+      }
+    });
+
     return res.status(200).json({
       success: true,
       message: 'Student moved to Interviews section',
@@ -1377,7 +1389,7 @@ export const selectApplicationFromInterview = async (req, res) => {
     const { id } = req.params;
     const companyId = req.user._id;
 
-    const application = await Application.findById(id).populate('jobId', 'company title companyName');
+    const application = await Application.findById(id).populate('jobId', 'company title companyName allowedPlacementCells');
     if (!application) {
       return res.status(404).json({
         success: false,
@@ -1415,6 +1427,17 @@ export const selectApplicationFromInterview = async (req, res) => {
       }
     });
 
+    await notifyPlacementUsersForJob({
+      job: application.jobId,
+      title: 'Student Selected',
+      message: `A student was selected for ${jobTitle} at ${companyName}.`,
+      type: 'selection',
+      metadata: {
+        applicationId: application._id,
+        status: application.status
+      }
+    });
+
     return res.status(200).json({
       success: true,
       message: 'Student selected for position',
@@ -1435,7 +1458,7 @@ export const rejectApplicationByCompany = async (req, res) => {
     const { id } = req.params;
     const companyId = req.user._id;
 
-    const application = await Application.findById(id).populate('jobId', 'company title companyName');
+    const application = await Application.findById(id).populate('jobId', 'company title companyName allowedPlacementCells');
     if (!application) {
       return res.status(404).json({
         success: false,
@@ -1469,6 +1492,17 @@ export const rejectApplicationByCompany = async (req, res) => {
       metadata: {
         applicationId: application._id,
         jobId: application.jobId?._id || application.jobId,
+        status: application.status
+      }
+    });
+
+    await notifyPlacementUsersForJob({
+      job: application.jobId,
+      title: 'Applicant Rejected',
+      message: `An applicant for ${jobTitle} at ${companyName} was rejected by the company.`,
+      type: 'application',
+      metadata: {
+        applicationId: application._id,
         status: application.status
       }
     });

@@ -3,6 +3,10 @@ import Application from '../models/Application.js';
 import Quiz from '../models/Quiz.js';
 import User from '../models/User.js';
 import StudentProfile from '../models/StudentProfile.js';
+import {
+  notifyPlacementUsers,
+  notifyPlacementUsersForJob
+} from '../utils/notificationHelper.js';
 
 const normalizeQuizPayload = (quizInput = {}) => {
   if (!quizInput || !Array.isArray(quizInput.questions) || quizInput.questions.length === 0) {
@@ -85,6 +89,17 @@ export const createJob = async (req, res) => {
     });
 
     await job.save();
+
+    await notifyPlacementUsers({
+      title: 'New Job Posted',
+      message: `${req.user?.name || req.user?.institution || 'A company'} posted a new job: ${job.title}.`,
+      type: 'job',
+      metadata: {
+        jobId: job._id,
+        companyId: company,
+        companyName: req.user?.name || req.user?.institution || ''
+      }
+    });
 
     const normalizedQuiz = normalizeQuizPayload(quiz);
     if (normalizedQuiz) {
@@ -403,6 +418,20 @@ export const updateJob = async (req, res) => {
       new: true,
       runValidators: true
     }).populate('allowedPlacementCells', 'name email institution');
+
+    if (updates.allowedPlacementCells !== undefined) {
+      await notifyPlacementUsersForJob({
+        job: updatedJob,
+        title: 'Job Assignment Updated',
+        message: `A job assignment was updated for ${updatedJob.title}.`,
+        type: 'job',
+        metadata: {
+          jobId: updatedJob._id,
+          companyId: updatedJob.company,
+          companyName: updatedJob.companyName || req.user?.name || ''
+        }
+      });
+    }
 
     res.status(200).json({
       success: true,

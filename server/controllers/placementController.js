@@ -2,6 +2,7 @@ import User from '../models/User.js';
 import Job from '../models/Job.js';
 import Application from '../models/Application.js';
 import StudentProfile from '../models/StudentProfile.js';
+import { createUserNotification } from '../utils/notificationHelper.js';
 
 const PLACED_STATUSES = ['selected', 'offer_accepted'];
 
@@ -561,6 +562,19 @@ export const getPlacementReportData = async (req, res) => {
 				jobTitle: mapping?.placed ? (placedApplication?.jobId?.title || '') : '',
 				salaryOrStipend: mapping?.placed ? (placedApplication?.jobId?.salary || '') : ''
 			};
+		});
+
+		await createUserNotification({
+			recipientId: req.user._id,
+			title: 'Report Generated',
+			message: `Your ${reportType.replace(/-/g, ' ')} report has been generated successfully.`,
+			type: 'report',
+			metadata: {
+				reportType,
+				title: String(title || '').trim() || 'Placement Summary Report',
+				year: year ? Number(year) : null,
+				companyId: companyId || null
+			}
 		});
 
 		res.status(200).json({
