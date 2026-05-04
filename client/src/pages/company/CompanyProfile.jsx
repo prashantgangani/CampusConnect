@@ -67,16 +67,12 @@ const CompanyProfile = () => {
 
         <div className="header-right">
           <div className="notification-bell">🔔</div>
-          <div className="user-menu">
-            <span className="user-name">{user.companyName || 'Company'}</span>
-            <button className="btn-logout" onClick={handleLogout}>
-              Logout
-            </button>
-          </div>
+          <button className="profile-btn" onClick={() => navigate('/company/dashboard')}>Dashboard</button>
+          <button className="logout-btn" onClick={handleLogout}>Logout</button>
         </div>
       </div>
 
-      <div className="dashboard-main">
+      <div>
         <div className="profile-container">
           <div className="profile-header">
             <h1>Company Profile</h1>
