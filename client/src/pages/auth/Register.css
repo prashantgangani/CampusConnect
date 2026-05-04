@@ -160,13 +160,13 @@
 
 .message.success {
   background: #d1fae5;
-  color: #065f46;
+  color: #000000;
   border: 1px solid #10b981;
 }
 
 .message.error {
   background: #fee2e2;
-  color: #991b1b;
+  color: #000000;
   border: 1px solid #ef4444;
 }
 
@@ -182,7 +182,7 @@
 }
 
 .signin-link {
-  color: #14b8a6;
+  color: #000000;
   text-decoration: none;
   font-weight: 600;
 }
@@ -291,12 +291,19 @@
 .form-group textarea:focus {
   border-color: #14b8a6;
   background: white;
-  box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.1);
 }
 
 .form-group input::placeholder,
 .form-group textarea::placeholder {
   color: #9ca3af;
+}
+
+.form-group input:-webkit-autofill,
+.form-group input:-webkit-autofill:hover,
+.form-group input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px white inset !important;
+  -webkit-text-fill-color: #000000 !important;
+  color: #000000 !important;
 }
 
 .input-wrapper {
@@ -313,11 +320,18 @@
 .input-wrapper input:focus {
   border-color: #14b8a6;
   background: white;
-  box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.1);
 }
 
 .input-wrapper input::placeholder {
   color: #9ca3af;
+}
+
+.input-wrapper input:-webkit-autofill,
+.input-wrapper input:-webkit-autofill:hover,
+.input-wrapper input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px white inset !important;
+  -webkit-text-fill-color: #000000 !important;
+  color: #000000 !important;
 }
 
 .toggle-password {
@@ -357,7 +371,7 @@
 
 .register-button {
   background: #14b8a6;
-  color: white;
+  color: black;
   border: none;
   padding: 14px;
   border-radius: 8px;
@@ -578,13 +592,13 @@
 .message.success {
   background: #ecfdf5;
   border-color: #6ee7b7;
-  color: #065f46;
+  color: #000000;
 }
 
 .message.error {
   background: #fff1f2;
   border-color: #fda4af;
-  color: #881337;
+  color: #000000;
   border-left: 5px solid #e11d48;
   font-weight: 600;
 }
